@@ -13,25 +13,25 @@ function useMobile() {
 
 // ─── デザイントークン ────────────────────────────────────
 const C = {
-  bg:    "#F2F1EC",   // オフホワイト背景
-  bg1:   "#FFFFFF",   // カード白
-  bg2:   "#F8F7F3",   // 薄グレー面
-  bg3:   "#EDECE7",   // ボーダー近い
-  ink:   "#111111",   // 文字メイン
-  ink2:  "#666666",   // サブ
-  ink3:  "#AAAAAA",   // 薄
-  line:  "rgba(0,0,0,0.07)",
-  lineM: "rgba(0,0,0,0.12)",
-  acc:   "#111111",   // アクセント=黒
-  // ステータス
-  red:   "#D94040", redBg:"rgba(217,64,64,0.08)",
-  ora:   "#D97706", oraBg:"rgba(217,119,6,0.08)",
-  yel:   "#B8960C", yelBg:"rgba(184,150,12,0.08)",
-  grn:   "#1A8A4A", grnBg:"rgba(26,138,74,0.08)",
-  blu:   "#2563EB", bluBg:"rgba(37,99,235,0.08)",
-  pur:   "#7C3AED", purBg:"rgba(124,58,237,0.08)",
-  r: { xs:4, sm:8, md:12, lg:16, xl:22, full:999 },
-  f: { xs:10, sm:11, base:13, md:14, lg:17, xl:22, "2xl":30 },
+  bg:    "#F5F6F8",   // アプリ背景
+  bg1:   "#FFFFFF",   // カード・パネル
+  bg2:   "#F0F1F3",   // インプット・薄背景
+  bg3:   "#E8E9EC",   // ホバー背景
+  ink:   "#0D0D0D",   // 最重要テキスト
+  ink2:  "#52525B",   // サブテキスト
+  ink3:  "#A1A1AA",   // ヒント・プレースホルダー
+  line:  "#E4E4E7",   // ボーダー
+  lineM: "#D4D4D8",   // 強ボーダー
+  acc:   "#5B6EF5",   // アクセントカラー（インディゴ）
+  accBg: "rgba(91,110,245,0.08)",
+  red:   "#EF4444", redBg:"rgba(239,68,68,0.08)",
+  ora:   "#F97316", oraBg:"rgba(249,115,22,0.08)",
+  yel:   "#EAB308", yelBg:"rgba(234,179,8,0.08)",
+  grn:   "#22C55E", grnBg:"rgba(34,197,94,0.08)",
+  blu:   "#3B82F6", bluBg:"rgba(59,130,246,0.08)",
+  pur:   "#8B5CF6", purBg:"rgba(139,92,246,0.08)",
+  r: { xs:4, sm:6, md:10, lg:14, xl:20, full:999 },
+  f: { xs:10, sm:11, base:13, md:14, lg:16, xl:20, "2xl":28 },
 };
 
 // ─── データ ──────────────────────────────────────────────
@@ -67,6 +67,27 @@ const STATUSES = [
   {id:"offer",    label:"内定",    color:C.pur,    bg:C.purBg, border:"#DDD6FE"},
   {id:"rejected", label:"不合格",  color:C.red,    bg:C.redBg, border:"#FECACA"},
   {id:"withdrawn",label:"辞退",    color:C.ink3,   bg:C.bg2,   border:C.line},
+];
+
+// ボード列グループ定義
+const BOARD_COLS = [
+  {
+    id:"planning_col", label:"準備中",
+    statuses:["planning"],
+    color:"#6B7280", bg:"#F3F4F6", border:"#D1D5DB",
+  },
+  {
+    id:"progress_col", label:"選考中",
+    statuses:["applied","ongoing","passed"],
+    color:"#D97706", bg:"rgba(217,119,6,0.08)", border:"#FDE68A",
+    note:"応募済み・選考中・通過を含む",
+  },
+  {
+    id:"result_col", label:"結果",
+    statuses:["offer","rejected","withdrawn"],
+    color:"#7C3AED", bg:"rgba(124,58,237,0.08)", border:"#DDD6FE",
+    note:"内定・不合格・辞退を含む",
+  },
 ];
 
 const STATUS_COLORS = [
@@ -220,7 +241,7 @@ const btn = (extra={}) => ({
   fontWeight:500, transition:"all 0.15s", whiteSpace:"nowrap",
   ...extra
 });
-const btnPri = btn({background:C.ink,color:"#fff",border:"none",fontWeight:600});
+const btnPri = btn({background:C.acc,color:"#fff",border:"none",fontWeight:600,boxShadow:`0 2px 8px ${C.acc}30`});
 const btnDng = btn({color:C.red,borderColor:"rgba(217,64,64,0.3)"});
 
 function Field({label,hint,children}){
@@ -357,20 +378,61 @@ function SummaryCards({stats,onCardTap,isMobile}){
 
 // ─── ボードビュー ────────────────────────────────────────
 function BoardView({companies,onSelect,urg=defUrg,statusFilter,isMobile}){
-  const statuses=useStatuses();
+  const customStatuses=useStatuses().filter(s=>!["planning","applied","ongoing","passed","offer","rejected","withdrawn"].includes(s.id));
   const filtered = statusFilter ? companies.filter(c=>c.status===statusFilter) : companies;
-  return(<div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginLeft:isMobile?-16:0,paddingLeft:isMobile?16:0}}>
-    <div style={{display:"grid",gridTemplateColumns:`repeat(${statuses.length}, ${isMobile?"160px":"180px"}) 48px`,gap:10,minWidth:"max-content",paddingRight:isMobile?16:0,alignItems:"start"}}>
-      {statuses.map(st=>{
-        const cols=filtered.filter(c=>c.status===st.id);
-        return(<div key={st.id}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:6,height:6,borderRadius:"50%",background:st.color,display:"inline-block"}}/><span style={{fontSize:C.f.sm,fontWeight:700,color:st.color,whiteSpace:"nowrap"}}>{st.label}</span></div>
-            <span style={{fontSize:C.f.xs,fontWeight:700,color:st.color,background:st.bg,border:`1px solid ${st.border}`,padding:"1px 7px",borderRadius:C.r.full}}>{cols.length}</span>
+  const [zoom,setZoom]=useState(isMobile?0.6:1);
+  const ZOOMS=[0.45,0.55,0.65,0.75,0.85,1.0];
+  const zoomIdx=ZOOMS.findIndex(z=>Math.abs(z-zoom)<0.01);
+  const canZoomIn=zoomIdx<ZOOMS.length-1;
+  const canZoomOut=zoomIdx>0;
+
+  // スマホ全体表示モード（zoom < 1）
+  const mobileOverview = isMobile && zoom < 1;
+  const colW = isMobile ? Math.floor(160 * zoom) : 180;
+
+  return(
+    <div>
+      {/* ズームコントロール（スマホのみ） */}
+      {isMobile&&(
+        <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6,marginBottom:10}}>
+          <span style={{fontSize:C.f.xs,color:C.ink3,marginRight:4}}>表示サイズ</span>
+          <button onClick={()=>canZoomOut&&setZoom(ZOOMS[zoomIdx-1])} disabled={!canZoomOut}
+            style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${C.line}`,background:canZoomOut?C.bg1:"transparent",cursor:canZoomOut?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",opacity:canZoomOut?1:0.35,fontSize:16,lineHeight:1,fontFamily:"inherit"}}>−</button>
+          <span style={{fontSize:C.f.xs,color:C.ink2,minWidth:28,textAlign:"center",fontWeight:600}}>{Math.round(zoom*100)}%</span>
+          <button onClick={()=>canZoomIn&&setZoom(ZOOMS[zoomIdx+1])} disabled={!canZoomIn}
+            style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${C.line}`,background:canZoomIn?C.bg1:"transparent",cursor:canZoomIn?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",opacity:canZoomIn?1:0.35,fontSize:16,lineHeight:1,fontFamily:"inherit"}}>＋</button>
+        </div>
+      )}
+
+      <div style={{
+        overflowX: mobileOverview ? "hidden" : "auto",
+        WebkitOverflowScrolling:"touch",
+        marginLeft:isMobile?-16:0,
+        paddingLeft:isMobile?16:0,
+      }}>
+        <div style={{
+          display:"grid",
+          gridTemplateColumns:`repeat(${BOARD_COLS.length + customStatuses.length}, ${colW}px) ${isMobile?32:48}px`,
+          gap: mobileOverview ? Math.round(6*zoom) : 10,
+          minWidth: mobileOverview ? "unset" : "max-content",
+          paddingRight:isMobile?16:0,
+          alignItems:"start",
+          width: mobileOverview ? "100%" : undefined,
+        }}>
+      {[...BOARD_COLS,...customStatuses.map(s=>({id:s.id+"_col",label:s.label,statuses:[s.id],color:s.color,bg:s.bg,border:s.border}))].map(col=>{
+        const cols=filtered.filter(c=>col.statuses.includes(c.status));
+        return(<div key={col.id}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:mobileOverview?4:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:3}}>
+              <span style={{width:mobileOverview?4:6,height:mobileOverview?4:6,borderRadius:"50%",background:col.color,display:"inline-block",flexShrink:0}}/>
+              <span style={{fontSize:mobileOverview?8:C.f.sm,fontWeight:700,color:col.color,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:mobileOverview?colW-20:undefined}}>{col.label}</span>
+            </div>
+            <span style={{fontSize:mobileOverview?8:C.f.xs,fontWeight:700,color:col.color,background:col.bg,border:`1px solid ${col.border}`,padding:"1px 5px",borderRadius:C.r.full,flexShrink:0}}>{cols.length}</span>
           </div>
-          <div style={{height:2,background:st.color+"25",borderRadius:2,marginBottom:10}}/>
-          {cols.length===0?<div style={{padding:"24px 0",textAlign:"center",color:C.ink3,fontSize:C.f.sm}}>—</div>
-          :cols.map(c=>{
+          <div style={{height:2,background:col.color+"25",borderRadius:2,marginBottom:mobileOverview?4:10}}/>
+          {cols.length===0?<div style={{padding:"12px 0",textAlign:"center",color:C.ink3,fontSize:mobileOverview?8:C.f.sm}}>—</div>
+          :cols.sort((a,b)=>col.statuses.indexOf(a.status)-col.statuses.indexOf(b.status)).map(c=>{
+            const st=stInfo(c.status);
             const next=c.events.filter(e=>!e.done&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
             const et=next?evtInfo(next.type):null;
             const u=urg(c.deadline), ue=next?urg(next.date):0, maxU=Math.max(u,ue);
@@ -379,35 +441,38 @@ function BoardView({companies,onSelect,urg=defUrg,statusFilter,isMobile}){
             const deadlineText=n===null?null:n<0?"期限切れ":n===0?"今日締切":n<=7?`あと${n}日`:null;
             return(
               <div key={c.id} onClick={()=>onSelect(c)}
-                style={{background:C.bg1,borderRadius:C.r.md,borderTop:`3px solid ${catCs?.color||"#E5E7EB"}`,border:`1px solid ${C.line}`,padding:"12px 13px",marginBottom:8,cursor:"pointer",transition:"box-shadow 0.15s",WebkitTapHighlightColor:"transparent"}}
+                style={{background:C.bg1,borderRadius:mobileOverview?4:C.r.md,borderTop:`${mobileOverview?2:3}px solid ${catCs?.color||"#E5E7EB"}`,border:`1px solid ${C.line}`,padding:mobileOverview?"6px 7px":"12px 13px",marginBottom:mobileOverview?4:8,cursor:"pointer",transition:"box-shadow 0.15s",WebkitTapHighlightColor:"transparent"}}
                 onMouseEnter={e=>e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.07)"}
                 onMouseLeave={e=>e.currentTarget.style.boxShadow=""}>
-                {/* 企業名 + 優先マーク */}
-                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:6,marginBottom:3}}>
-                  <span style={{fontSize:C.f.base,fontWeight:700,color:C.ink,lineHeight:1.35,flex:1}}>{c.company}</span>
-                  {c.priority&&<Ic name="starF" size={12} color="#D97706" style={{flexShrink:0,marginTop:2}}/>}
+                <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:4,marginBottom:mobileOverview?2:4}}>
+                  <span style={{fontSize:mobileOverview?8:C.f.base,fontWeight:700,color:C.ink,lineHeight:1.3,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:mobileOverview?"nowrap":"normal"}}>{c.company}</span>
+                  {c.priority&&!mobileOverview&&<Ic name="starF" size={12} color="#D97706" style={{flexShrink:0,marginTop:2}}/>}
                 </div>
-                {/* 業界 */}
-                <div style={{fontSize:C.f.xs,color:C.ink3,marginBottom:deadlineText||next?10:0}}>{c.industry}</div>
-                {/* 締切（期限切れ・7日以内のみ表示） */}
-                {deadlineText&&(
-                  <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:next?6:0}}>
-                    <Ic name="calend" size={10} color={maxU>=2?uColor(maxU):C.ink3}/>
-                    <span style={{fontSize:C.f.xs,fontWeight:maxU>=2?700:400,color:maxU>=2?uColor(maxU):C.ink3}}>
-                      {fmtS(c.deadline)} · {deadlineText}
-                    </span>
+                {/* カテゴリ＋ステータスバッジ */}
+                {!mobileOverview&&(
+                  <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6,flexWrap:"wrap"}}>
+                    {CAT_ST[c.category]&&<span style={{fontSize:9,fontWeight:700,color:CAT_ST[c.category].color,background:CAT_ST[c.category].bg,border:`1px solid ${CAT_ST[c.category].border}`,padding:"1px 6px",borderRadius:C.r.full,whiteSpace:"nowrap"}}>{catInfo(c.category).label}</span>}
+                    {col.statuses.length>1&&<span style={{fontSize:9,fontWeight:600,color:st.color,background:st.bg,border:`1px solid ${st.border}`,padding:"1px 6px",borderRadius:C.r.full,whiteSpace:"nowrap"}}>{st.label}</span>}
                   </div>
                 )}
-                {/* 次のイベント */}
-                {next&&(
+                {mobileOverview&&CAT_ST[c.category]&&(
+                  <div style={{width:3,height:3,borderRadius:"50%",background:CAT_ST[c.category].color,display:"inline-block",marginBottom:2}}/>
+                )}
+                {!mobileOverview&&<div style={{fontSize:C.f.xs,color:C.ink3,marginBottom:deadlineText||next?8:0}}>{c.industry}</div>}
+                {deadlineText&&!mobileOverview&&(
+                  <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:next?6:0}}>
+                    <Ic name="calend" size={10} color={maxU>=2?uColor(maxU):C.ink3}/>
+                    <span style={{fontSize:C.f.xs,fontWeight:maxU>=2?700:400,color:maxU>=2?uColor(maxU):C.ink3}}>{fmtS(c.deadline)} · {deadlineText}</span>
+                  </div>
+                )}
+                {deadlineText&&mobileOverview&&(
+                  <div style={{fontSize:7,color:maxU>=2?uColor(maxU):C.ink3,fontWeight:maxU>=2?700:400,marginBottom:2}}>{fmtS(c.deadline)}</div>
+                )}
+                {next&&!mobileOverview&&(
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
                     <Ic name={et.icon} size={10} color={C.ink3}/>
-                    <span style={{fontSize:C.f.xs,color:C.ink2,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      {fmtS(next.date)} {next.label}
-                    </span>
-                    <span style={{fontSize:9,color:next.mode==="online"?"#4338CA":"#C2410C",fontWeight:500,whiteSpace:"nowrap"}}>
-                      {next.mode==="online"?"●":"●"} {next.mode==="online"?"オンライン":"対面"}
-                    </span>
+                    <span style={{fontSize:C.f.xs,color:C.ink2,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtS(next.date)} {next.label}</span>
+                    <span style={{fontSize:9,color:next.mode==="online"?"#4338CA":"#C2410C",fontWeight:500,whiteSpace:"nowrap"}}>● {next.mode==="online"?"ON":"OFF"}</span>
                   </div>
                 )}
               </div>
@@ -420,7 +485,9 @@ function BoardView({companies,onSelect,urg=defUrg,statusFilter,isMobile}){
         <AddStatusButton/>
       </div>
     </div>
-  </div>);
+      </div>
+    </div>
+  );
 }
 
 // ─── タイムライン ────────────────────────────────────────
@@ -473,6 +540,313 @@ function TimelineView({allEvents,activeCategory,onSelectCompany,onToggle,urg=def
   </div>);
 }
 
+
+// ─── 今日ビュー（ホーム）────────────────────────────────
+function TodayView({companies,allEvents,onSelectCompany,onToggle,urg=defUrg,isMobile,onShowAdd}){
+  const now = new Date();
+  const todayStr = today;
+  const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate()+7);
+  const weekEndStr = weekEnd.toISOString().slice(0,10);
+
+  // 今日〜7日以内のイベント
+  const urgentEvts = allEvents.filter(e=>!e.done&&e.date>=todayStr&&e.date<=weekEndStr)
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  const todayEvts  = urgentEvts.filter(e=>e.date===todayStr);
+  const tomorrowEvts = urgentEvts.filter(e=>{
+    const d=new Date(today); d.setDate(d.getDate()+1);
+    return e.date===d.toISOString().slice(0,10);
+  });
+  const weekEvts = urgentEvts.filter(e=>e.date>new Date(new Date(today).setDate(new Date(today).getDate()+1)).toISOString().slice(0,10));
+
+  // 次のアクションが必要な企業（期限切れ含む）
+  const needAction = companies.filter(c=>{
+    if(["rejected","withdrawn","offer"].includes(c.status)) return false;
+    const u=urg(c.deadline);
+    const hasUrgentEvt=c.events.some(e=>!e.done&&urg(e.date)>0);
+    return u>0||hasUrgentEvt;
+  }).sort((a,b)=>{
+    const ua=Math.max(urg(a.deadline),...a.events.filter(e=>!e.done).map(e=>urg(e.date)));
+    const ub=Math.max(urg(b.deadline),...b.events.filter(e=>!e.done).map(e=>urg(e.date)));
+    return ub-ua;
+  });
+
+  // 進行中の企業（選考中）
+  const inProgress = companies.filter(c=>["applied","ongoing","passed"].includes(c.status));
+
+  const p=isMobile?"14px":"0";
+  const SectionTitle=({children,count,color})=>(
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+      <span style={{fontSize:C.f.sm,fontWeight:700,color:color||C.ink}}>{children}</span>
+      {count!=null&&<span style={{fontSize:C.f.xs,fontWeight:600,background:C.bg2,color:C.ink3,padding:"1px 8px",borderRadius:C.r.full}}>{count}件</span>}
+    </div>
+  );
+
+  return(
+    <div style={{padding:isMobile?"14px":"0",paddingBottom:isMobile?90:24}}>
+
+      {/* ── グリーティング ── */}
+      <div style={{marginBottom:20,padding:isMobile?"0":"0"}}>
+        <div style={{fontSize:isMobile?18:22,fontWeight:800,color:C.ink,letterSpacing:-0.5,marginBottom:4}}>
+          {now.getHours()<12?"おはようございます 🌅":now.getHours()<18?"こんにちは ☀️":"こんばんは 🌙"}
+        </div>
+        <div style={{fontSize:C.f.base,color:C.ink2}}>
+          {todayEvts.length>0
+            ? `今日は${todayEvts.length}件の予定があります`
+            : needAction.length>0
+            ? `${needAction.length}社の対応が必要です`
+            : "今日の緊急タスクはありません ✓"}
+        </div>
+      </div>
+
+      {/* ── 今日の予定 ── */}
+      {todayEvts.length>0&&(
+        <div style={{marginBottom:24}}>
+          <SectionTitle color={C.red}>🔴 今日の予定</SectionTitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {todayEvts.map((e,i)=>(
+              <TodayEventCard key={i} event={e} onSelect={()=>onSelectCompany(e.companyId)} onToggle={()=>onToggle(e.companyId,e.id)} urgent/>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 明日の予定 ── */}
+      {tomorrowEvts.length>0&&(
+        <div style={{marginBottom:24}}>
+          <SectionTitle color={C.ora}>🟠 明日の予定</SectionTitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {tomorrowEvts.map((e,i)=>(
+              <TodayEventCard key={i} event={e} onSelect={()=>onSelectCompany(e.companyId)} onToggle={()=>onToggle(e.companyId,e.id)}/>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 今週の予定 ── */}
+      {weekEvts.length>0&&(
+        <div style={{marginBottom:24}}>
+          <SectionTitle color={C.yel}>📅 今週中</SectionTitle>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {weekEvts.map((e,i)=>(
+              <TodayEventCard key={i} event={e} onSelect={()=>onSelectCompany(e.companyId)} onToggle={()=>onToggle(e.companyId,e.id)} compact/>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 全部なし ── */}
+      {todayEvts.length===0&&tomorrowEvts.length===0&&weekEvts.length===0&&(
+        <div style={{background:C.grnBg,border:`1px solid rgba(34,197,94,0.25)`,borderRadius:C.r.lg,padding:"20px 18px",marginBottom:24,display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:28}}>✅</span>
+          <div>
+            <div style={{fontSize:C.f.md,fontWeight:700,color:C.grn,marginBottom:3}}>今週は全て対応済み！</div>
+            <div style={{fontSize:C.f.sm,color:C.ink2}}>新しい企業を追加して選考を進めましょう</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 対応が必要な企業 ── */}
+      {needAction.length>0&&(
+        <div style={{marginBottom:24}}>
+          <SectionTitle color={C.red}>⚠️ 期限注意の企業</SectionTitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {needAction.map(c=>{
+              const maxU=Math.max(urg(c.deadline),...c.events.filter(e=>!e.done).map(e=>urg(e.date)));
+              const nextEvt=c.events.filter(e=>!e.done&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
+              const catCs=CAT_ST[c.category];
+              return(
+                <div key={c.id} onClick={()=>onSelectCompany(c.id)}
+                  style={{background:C.bg1,border:`1.5px solid ${uColor(maxU)}30`,borderLeft:`3px solid ${uColor(maxU)}`,borderRadius:C.r.md,padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,transition:"box-shadow 0.15s"}}
+                  onMouseEnter={e=>e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.08)"}
+                  onMouseLeave={e=>e.currentTarget.style.boxShadow=""}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+                      <span style={{fontSize:C.f.base,fontWeight:700,color:C.ink,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.company}</span>
+                      {catCs&&<span style={{fontSize:9,fontWeight:700,color:catCs.color,background:catCs.bg,border:`1px solid ${catCs.border}`,padding:"1px 6px",borderRadius:C.r.full,flexShrink:0}}>{catInfo(c.category).label}</span>}
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      {c.deadline&&<span style={{fontSize:C.f.xs,color:urg(c.deadline)>0?uColor(urg(c.deadline)):C.ink3,fontWeight:urg(c.deadline)>0?700:400}}>ES締切 {fmtM(c.deadline)}</span>}
+                      {nextEvt&&<span style={{fontSize:C.f.xs,color:C.ink2}}>{evtInfo(nextEvt.type).label} {fmtM(nextEvt.date)}</span>}
+                    </div>
+                  </div>
+                  <div style={{fontSize:16,color:uColor(maxU),flexShrink:0}}>›</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 選考中の企業一覧（進捗） ── */}
+      {inProgress.length>0&&(
+        <div style={{marginBottom:24}}>
+          <SectionTitle color={C.ink2}>📊 選考中の企業</SectionTitle>
+          <div style={{background:C.bg1,border:`1px solid ${C.line}`,borderRadius:C.r.lg,overflow:"hidden"}}>
+            {inProgress.map((c,i)=>{
+              const st=stInfo(c.status);
+              const done=c.events.filter(e=>e.done).length;
+              const total=c.events.length;
+              const pct=total>0?Math.round(done/total*100):0;
+              const catCs=CAT_ST[c.category];
+              return(
+                <div key={c.id} onClick={()=>onSelectCompany(c.id)}
+                  style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",borderBottom:i<inProgress.length-1?`1px solid ${C.line}`:"none",cursor:"pointer",transition:"background 0.1s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.bg2}
+                  onMouseLeave={e=>e.currentTarget.style.background=""}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                      <span style={{fontSize:C.f.base,fontWeight:600,color:C.ink,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.company}</span>
+                      {catCs&&<span style={{fontSize:9,color:catCs.color,background:catCs.bg,border:`1px solid ${catCs.border}`,padding:"1px 5px",borderRadius:C.r.full,flexShrink:0,fontWeight:600}}>{catInfo(c.category).label}</span>}
+                      <span style={{fontSize:9,color:st.color,background:st.bg,border:`1px solid ${st.border}`,padding:"1px 5px",borderRadius:C.r.full,flexShrink:0,fontWeight:600}}>{st.label}</span>
+                    </div>
+                    {total>0&&(
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{flex:1,height:4,background:C.bg2,borderRadius:C.r.full,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${pct}%`,background:pct===100?C.grn:C.acc,borderRadius:C.r.full,transition:"width 0.3s"}}/>
+                        </div>
+                        <span style={{fontSize:9,color:C.ink3,whiteSpace:"nowrap"}}>{done}/{total}</span>
+                      </div>
+                    )}
+                  </div>
+                  <span style={{fontSize:C.f.sm,color:C.ink3}}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 企業がなければ誘導 ── */}
+      {companies.length===0&&(
+        <div style={{textAlign:"center",padding:"48px 24px"}}>
+          <div style={{fontSize:48,marginBottom:16}}>📋</div>
+          <div style={{fontSize:C.f.lg,fontWeight:700,color:C.ink,marginBottom:8}}>まず企業を追加しよう</div>
+          <div style={{fontSize:C.f.sm,color:C.ink2,marginBottom:24}}>応募したい企業を登録して<br/>期限や選考を管理できます</div>
+          <button onClick={onShowAdd} style={{...btnPri,padding:"12px 28px",borderRadius:C.r.full,fontSize:C.f.md}}>
+            <Ic name="plus" size={15} color="#fff"/>最初の企業を追加
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TodayEventCard({event:e,onSelect,onToggle,urgent,compact}){
+  const et=evtInfo(e.type);
+  const catCs=CAT_ST[e.category];
+  const n=du(e.date);
+  return(
+    <div style={{background:urgent?`${uColor(3)}06`:C.bg1,border:`1.5px solid ${urgent?uColor(3)+"30":C.line}`,borderRadius:C.r.md,padding:compact?"9px 12px":"12px 14px",display:"flex",alignItems:"center",gap:12,cursor:"pointer",transition:"box-shadow 0.15s"}}
+      onMouseEnter={ev=>ev.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.08)"}
+      onMouseLeave={ev=>ev.currentTarget.style.boxShadow=""}>
+      <div style={{width:compact?32:38,height:compact?32:38,borderRadius:C.r.sm,background:urgent?uColor(3)+"12":C.bg2,border:`1px solid ${urgent?uColor(3)+"30":C.line}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+        <Ic name={et.icon} size={compact?14:17} color={urgent?uColor(3):C.ink2}/>
+      </div>
+      <div style={{flex:1,minWidth:0}} onClick={onSelect}>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap"}}>
+          <span style={{fontSize:compact?C.f.sm:C.f.base,fontWeight:700,color:C.ink,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.company}</span>
+          {catCs&&<span style={{fontSize:9,fontWeight:700,color:catCs.color,background:catCs.bg,border:`1px solid ${catCs.border}`,padding:"1px 5px",borderRadius:C.r.full,flexShrink:0}}>{catInfo(e.category).label}</span>}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{fontSize:C.f.xs,color:urgent?uColor(3):C.ink2,fontWeight:urgent?700:400}}>{e.label}</span>
+          <span style={{fontSize:C.f.xs,color:urgent?uColor(3):C.ink3,fontWeight:urgent?700:400}}>{fmtM(e.date)}</span>
+          <ModeChip mode={e.mode}/>
+          {n!==null&&n<=7&&!e.done&&<span style={{fontSize:9,fontWeight:700,color:uColor(n<=0?3:n<=3?2:1),background:uBg(n<=0?3:n<=3?2:1),padding:"1px 6px",borderRadius:C.r.full}}>{n<=0?"期限切れ":n===0?"今日！":`あと${n}日`}</span>}
+        </div>
+      </div>
+      <CircleCheck done={e.done} size={22} onToggle={ev=>{ev.stopPropagation();onToggle()}}/>
+    </div>
+  );
+}
+
+
+// ─── Googleカレンダー連携 ───────────────────────────────
+
+// 日付をGcal形式に変換（YYYYMMDDTHHMMSS）
+function toGcalDate(dateStr, allDay=true){
+  if(!dateStr) return "";
+  const d = dateStr.replace(/-/g,"");
+  return allDay ? d : `${d}T090000`;
+}
+
+// Googleカレンダーの追加URLを生成
+function makeGcalUrl(title, dateStr, duration=60, details="", location=""){
+  const start = toGcalDate(dateStr);
+  // 終日イベント: 翌日
+  const end = (() => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate()+1);
+    return d.toISOString().slice(0,10).replace(/-/g,"");
+  })();
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${start}/${end}`,
+    details: details,
+    location: location,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+// .ics ファイルを生成してダウンロード
+function exportICS(events){
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//就活トラッカー//JP",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+  ];
+  events.forEach((e,i)=>{
+    if(!e.date) return;
+    const uid = `shukatsu-${e.companyId||i}-${e.id||i}@tracker`;
+    const dtstart = toGcalDate(e.date).padEnd(8,"0");
+    const d = new Date(e.date); d.setDate(d.getDate()+1);
+    const dtend = d.toISOString().slice(0,10).replace(/-/g,"");
+    const summary = `${e.company} - ${e.label}`;
+    const desc = [
+      e.mode==="online"?"【オンライン】":"【対面】",
+      e.notes||"",
+    ].filter(Boolean).join(" ");
+    lines.push(
+      "BEGIN:VEVENT",
+      `UID:${uid}`,
+      `DTSTART;VALUE=DATE:${dtstart}`,
+      `DTEND;VALUE=DATE:${dtend}`,
+      `SUMMARY:${summary}`,
+      desc?`DESCRIPTION:${desc}`:"",
+      `STATUS:CONFIRMED`,
+      "END:VEVENT"
+    );
+  });
+  lines.push("END:VCALENDAR");
+  const blob = new Blob([lines.filter(Boolean).join("\r\n")], {type:"text/calendar;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "shukatsu-schedule.ics"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Googleカレンダー追加ボタン
+function GcalButton({title,date,details="",location="",small}){
+  if(!date) return null;
+  const url = makeGcalUrl(title,date,60,details,location);
+  return(
+    <a href={url} target="_blank" rel="noopener noreferrer"
+      onClick={e=>e.stopPropagation()}
+      style={{display:"inline-flex",alignItems:"center",gap:4,padding:small?"3px 8px":"5px 10px",borderRadius:C.r.full,border:"1px solid #DADCE0",background:"#fff",color:"#3C4043",fontSize:small?9:C.f.xs,fontWeight:600,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0,transition:"box-shadow 0.15s"}}
+      onMouseEnter={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.15)"}
+      onMouseLeave={e=>e.currentTarget.style.boxShadow=""}>
+      <svg width={small?10:12} height={small?10:12} viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="3" width="14" height="12" rx="1.5" stroke="#4285F4" strokeWidth="1.4"/>
+        <line x1="1" y1="7" x2="15" y2="7" stroke="#4285F4" strokeWidth="1.4"/>
+        <line x1="5" y1="1" x2="5" y2="5" stroke="#4285F4" strokeWidth="1.4" strokeLinecap="round"/>
+        <line x1="11" y1="1" x2="11" y2="5" stroke="#4285F4" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+      {small?"G追加":"カレンダーに追加"}
+    </a>
+  );
+}
 
 // ─── 説明会・就活イベントビュー ──────────────────────────
 function EventsView({events,onToggle,onDelete,onAdd,urg=defUrg,isMobile}){
@@ -955,7 +1329,7 @@ function CalendarView({allEvents,onSelectCompany,urg=defUrg,isMobile}){
 
 
 // ─── サイドバーナビ ──────────────────────────────────────
-function Sidebar({activeView,onNav,onClose,onShowAdd,onShowAddEvent,onShowEmail,onShowThr,isMobile,companies,stats,onCardTap,standaloneEvents=[],customCards=[],onAddCard,onRemoveCard}){
+function Sidebar({activeView,onNav,onClose,onShowAdd,onShowAddEvent,onShowEmail,onShowThr,onExportICS,isMobile,companies,stats,onCardTap,standaloneEvents=[],customCards=[],onAddCard,onRemoveCard}){
   const [addingCard,setAddingCard]=useState(false);
   const [newCard,setNewCard]=useState({label:"",view:"board",color:C.ink});
   const NAV=[
@@ -968,6 +1342,7 @@ function Sidebar({activeView,onNav,onClose,onShowAdd,onShowAddEvent,onShowEmail,
     {id:"add",   label:"企業を追加",   icon:"plus",  action:onShowAdd},
     {id:"addev", label:"イベントを追加", icon:"calend",action:onShowAddEvent||onShowAdd},
     {id:"email", label:"メール取込",   icon:"mail",  action:onShowEmail},
+    {id:"ics",   label:"カレンダーに一括追加", icon:"calend", action:()=>onExportICS&&onExportICS()},
     {id:"thr",   label:"アラート設定", icon:"gear",  action:onShowThr},
   ];
   return(
@@ -1481,7 +1856,7 @@ export default function App(){
   const isMobile = useMobile();
   const [companies,setCompanies]=useState(INITIAL);
   const [activeCat,setActiveCat]=useState("all");
-  const [activeView,setActiveView]=useState("board");
+  const [activeView,setActiveView]=useState("today");
   const [statusFilter,setStatusFilter]=useState(null);
   const [selected,setSelected]=useState(null);
   const [showAdd,setShowAdd]=useState(false);
@@ -1546,51 +1921,117 @@ export default function App(){
     setStatusFilter(status||null);
   },[]);
 
-  const VIEWS=[{id:"board",label:"ボード",icon:"board"},{id:"timeline",label:"スケジュール",icon:"calend"},{id:"list",label:"一覧",icon:"list"},{id:"events",label:"イベント",icon:"bldg"}];
+  const VIEWS=[{id:"today",label:"今日",icon:"home"},{id:"board",label:"ボード",icon:"board"},{id:"timeline",label:"スケジュール",icon:"calend"},{id:"list",label:"一覧",icon:"list"},{id:"events",label:"イベント",icon:"bldg"}];
   const pad = isMobile ? "0 16px" : "0 28px";
   const maxW = 1320;
 
   return(<StatusesContext.Provider value={allStatuses}><StatusSetterContext.Provider value={{addStatus:s=>setCustomStatuses(p=>[...p,s])}}>
-  <div style={{fontFamily:"'Hiragino Sans','Yu Gothic UI',sans-serif",background:C.bg,minHeight:"100vh",color:C.ink,writingMode:"horizontal-tb",paddingBottom:isMobile?80:0}}>
-    <style>{`*{box-sizing:border-box} input[type=date]::-webkit-calendar-picker-indicator{opacity:0.5} select option{background:#fff;color:#111}`}</style>
+  <div style={{fontFamily:"-apple-system,'Hiragino Sans','Yu Gothic UI',sans-serif",background:C.bg,minHeight:"100vh",color:C.ink,writingMode:"horizontal-tb",display:"flex",flexDirection:"column",paddingBottom:isMobile?72:0}}>
+    <style>{`
+      *{box-sizing:border-box}
+      input[type=date]::-webkit-calendar-picker-indicator{opacity:0.4}
+      select option{background:#fff;color:#111}
+      ::-webkit-scrollbar{width:4px;height:4px}
+      ::-webkit-scrollbar-track{background:transparent}
+      ::-webkit-scrollbar-thumb{background:${C.line};border-radius:4px}
+      body{background:${C.bg}}
+    `}</style>
 
-    {/* ヘッダー */}
-    <header style={{background:C.bg1,borderBottom:`1px solid ${C.line}`,padding:`0 ${isMobile?16:28}px`,position:"sticky",top:0,zIndex:50}}>
-      <div style={{maxWidth:maxW,margin:"0 auto",display:"flex",alignItems:"center",gap:isMobile?10:20,height:isMobile?52:56}}>
-        {/* ハンバーガー */}
-        <button onClick={()=>setShowSidebar(true)} style={{...btn(),padding:"8px",borderRadius:C.r.sm,minWidth:40,justifyContent:"center",flexShrink:0,background:"transparent",border:"none"}}>
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={C.ink} strokeWidth="1.7" strokeLinecap="round">
-            <line x1="2" y1="4.5" x2="16" y2="4.5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13.5" x2="16" y2="13.5"/>
-          </svg>
-        </button>
-        {/* ロゴ */}
-        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-          <div style={{width:28,height:28,borderRadius:C.r.sm,background:C.ink,display:"flex",alignItems:"center",justifyContent:"center"}}><Ic name="calend" size={15} color="#fff"/></div>
-          <div style={{display:isMobile?"none":"block"}}><div style={{fontSize:14,fontWeight:800,letterSpacing:-0.5,lineHeight:1}}>就活トラッカー</div><div style={{fontSize:9,color:C.ink3,letterSpacing:1.5}}>2026</div></div>
+    {/* ── ヘッダー ── */}
+    <header style={{
+      background:C.bg1,
+      borderBottom:`1px solid ${C.line}`,
+      position:"sticky",top:0,zIndex:50,
+      height:isMobile?52:56,
+      display:"flex",alignItems:"center",
+      padding:`0 ${isMobile?14:24}px`,
+      gap:isMobile?8:16,
+    }}>
+      {/* ハンバーガー */}
+      <button onClick={()=>setShowSidebar(true)} style={{width:34,height:34,borderRadius:C.r.md,border:"none",background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:C.ink2,transition:"background 0.15s"}}
+        onMouseEnter={e=>e.currentTarget.style.background=C.bg2} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <line x1="1.5" y1="4" x2="14.5" y2="4"/><line x1="1.5" y1="8" x2="14.5" y2="8"/><line x1="1.5" y1="12" x2="14.5" y2="12"/>
+        </svg>
+      </button>
+
+      {/* ロゴ */}
+      <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+        <div style={{width:26,height:26,borderRadius:C.r.sm,background:`linear-gradient(135deg,${C.acc},#8B5CF6)`,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 2px 8px ${C.acc}40`}}>
+          <Ic name="calend" size={13} color="#fff"/>
         </div>
-
-        <div style={{flex:1}}/>
-
-        {/* 検索 */}
-        {search&&<div style={{position:"relative",flexShrink:0}}>
-          <div style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}><Ic name="search" size={13} color={C.ink3}/></div>
-          <input autoFocus value={searchQ} onChange={e=>setSearchQ(e.target.value)} onBlur={()=>{if(!searchQ)setSearch(false)}} placeholder="企業名で検索..." style={{...iSt,paddingLeft:32,width:isMobile?140:170,borderRadius:C.r.full,padding:"7px 12px 7px 30px"}}/>
-        </div>}
-        {!search&&<button onClick={()=>setSearch(true)} style={{...btn(),padding:"8px",borderRadius:C.r.full,minWidth:40,justifyContent:"center"}}><Ic name="search" size={17} color={C.ink2}/></button>}
-
-        <NotifBell companies={companies} onSelect={id=>setSelected(companies.find(c=>c.id===id))} redDays={redDays} yellowDays={yellowDays} isMobile={isMobile}/>
-
-        {/* 企業追加ボタン（共通） */}
-        <button onClick={()=>setShowAdd(true)} style={{...btnPri,borderRadius:C.r.full,padding:isMobile?"7px 12px":"7px 18px"}}>
-          <Ic name="plus" size={13} color="#fff"/>
-          {!isMobile&&"企業を追加"}
-        </button>
+        {!isMobile&&<span style={{fontSize:14,fontWeight:700,letterSpacing:-0.4,color:C.ink}}>就活トラッカー</span>}
       </div>
+
+      {/* カテゴリタブ（PCはヘッダー内） */}
+      {!isMobile&&(
+        <div style={{display:"flex",gap:2,overflowX:"auto",flex:1,maxWidth:600}}>
+          {CATEGORIES.map(cat=>{
+            const active=activeCat===cat.id;
+            const cs=CAT_ST[cat.id];
+            const cnt=cat.id==="all"?companies.length:companies.filter(c=>c.category===cat.id).length;
+            return(
+              <button key={cat.id} onClick={()=>{setActiveCat(cat.id);setStatusFilter(null)}}
+                style={{padding:"5px 12px",borderRadius:C.r.full,border:`1.5px solid ${active?(cs?.color||C.ink):C.line}`,background:active?(cs?.bg||C.bg2):"transparent",cursor:"pointer",fontFamily:"inherit",fontSize:C.f.sm,fontWeight:active?600:400,color:active?(cs?.color||C.ink):C.ink2,display:"inline-flex",alignItems:"center",gap:5,whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                {cat.id!=="all"&&cs&&<span style={{width:5,height:5,borderRadius:"50%",background:cs.color,display:"inline-block"}}/>}
+                {cat.label}
+                <span style={{fontSize:9,fontWeight:600,background:active?(cs?.bg||"rgba(0,0,0,0.06)"):"rgba(0,0,0,0.05)",color:active?(cs?.color||C.ink):C.ink3,padding:"0px 5px",borderRadius:C.r.full}}>{cnt}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{flex:1}}/>
+
+      {/* 検索 */}
+      <div style={{position:"relative",flexShrink:0}}>
+        {search?(
+          <div style={{position:"relative"}}>
+            <div style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}><Ic name="search" size={12} color={C.ink3}/></div>
+            <input autoFocus value={searchQ} onChange={e=>setSearchQ(e.target.value)} onBlur={()=>{if(!searchQ)setSearch(false)}} placeholder="企業名を検索..." style={{...iSt,paddingLeft:28,width:isMobile?130:180,padding:"6px 10px 6px 28px",borderRadius:C.r.full,fontSize:C.f.sm}}/>
+          </div>
+        ):(
+          <button onClick={()=>setSearch(true)} style={{width:34,height:34,borderRadius:C.r.full,border:`1px solid ${C.line}`,background:C.bg1,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ic name="search" size={15} color={C.ink2}/></button>
+        )}
+      </div>
+
+      {/* 通知 */}
+      <NotifBell companies={companies} onSelect={id=>setSelected(companies.find(c=>c.id===id))} redDays={redDays} yellowDays={yellowDays} isMobile={isMobile}/>
+
+      {/* 企業追加 */}
+      <button onClick={()=>setShowAdd(true)} style={{...btnPri,borderRadius:C.r.full,padding:isMobile?"6px 10px":"7px 16px",fontSize:C.f.sm,boxShadow:`0 2px 8px ${C.acc}30`}}>
+        <Ic name="plus" size={13} color="#fff"/>
+        {!isMobile&&"追加"}
+      </button>
     </header>
 
-    {/* メインコンテンツ */}
-    <div style={{maxWidth:maxW,margin:"0 auto",padding:isMobile?"16px 16px 0":"24px 28px"}}>
+    {/* ── スマホカテゴリタブ ── */}
+    {isMobile&&(
+      <div style={{background:C.bg1,borderBottom:`1px solid ${C.line}`,overflowX:"auto",WebkitOverflowScrolling:"touch",flexShrink:0}}>
+        <div style={{display:"flex",padding:"0 14px",gap:0,minWidth:"max-content"}}>
+          {CATEGORIES.map(cat=>{
+            const active=activeCat===cat.id;
+            const cs=CAT_ST[cat.id];
+            const cnt=cat.id==="all"?companies.length:companies.filter(c=>c.category===cat.id).length;
+            return(
+              <button key={cat.id} onClick={()=>{setActiveCat(cat.id);setStatusFilter(null)}}
+                style={{padding:"10px 12px",border:"none",borderBottom:`2px solid ${active?(cs?.color||C.ink):"transparent"}`,background:"transparent",cursor:"pointer",fontFamily:"inherit",fontSize:C.f.sm,fontWeight:active?700:400,color:active?(cs?.color||C.ink):C.ink3,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5,transition:"all 0.12s"}}>
+                {cat.id!=="all"&&cs&&active&&<span style={{width:5,height:5,borderRadius:"50%",background:cs.color,display:"inline-block"}}/>}
+                {cat.label}
+                <span style={{fontSize:9,fontWeight:600,background:active?(cs?.bg||"rgba(0,0,0,0.06)"):"rgba(0,0,0,0.04)",color:active?(cs?.color||C.ink):C.ink3,padding:"0 5px",borderRadius:C.r.full}}>{cnt}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    )}
+
+    {/* ── メインコンテンツ ── */}
+    <div style={{flex:1,display:"flex",flexDirection:"column",maxWidth:maxW,margin:"0 auto",width:"100%",padding:isMobile?"0":"0 24px 24px"}}>
+
       {/* フィルターバー */}
+      <div style={{padding:isMobile?"10px 14px":"12px 0 0"}}>
       <FilterBar
         activeCat={activeCat} filterInd={filterInd} statusFilter={statusFilter}
         companies={companies}
@@ -1601,15 +2042,17 @@ export default function App(){
         isMobile={isMobile}
         filteredCount={filtered.length}
       />
+      </div>
 
-      {activeView==="board"    &&<BoardView    companies={filtered} onSelect={setSelected} urg={urg} statusFilter={statusFilter} isMobile={isMobile}/>}
+      {activeView==="today"    &&<TodayView companies={companies} allEvents={allEvents} onSelectCompany={id=>setSelected(companies.find(c=>c.id===id))} onToggle={togEvt} urg={urg} isMobile={isMobile} onShowAdd={()=>setShowAdd(true)}/>}
+      {activeView==="board"    &&<div style={{padding:isMobile?"10px 14px 0":0}}><BoardView    companies={filtered} onSelect={setSelected} urg={urg} statusFilter={statusFilter} isMobile={isMobile}/></div>}
       {activeView==="timeline" &&<>
         {/* スケジュール切替トグル */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:14}}>
-          <div style={{display:"inline-flex",background:C.bg2,borderRadius:C.r.full,padding:3,gap:2}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:14,padding:isMobile?"0 14px":"0"}}>
+          <div style={{display:"inline-flex",background:C.bg2,borderRadius:C.r.full,padding:2,gap:1,border:`1px solid ${C.line}`}}>
             {[{id:"timeline",label:"タイムライン",icon:"list"},{id:"calendar",label:"カレンダー",icon:"calend"}].map(m=>(
-              <button key={m.id} onClick={()=>setScheduleMode(m.id)} style={{padding:"5px 14px",borderRadius:C.r.full,border:"none",cursor:"pointer",fontSize:C.f.xs,fontWeight:600,background:scheduleMode===m.id?C.bg1:"transparent",color:scheduleMode===m.id?C.ink:C.ink3,boxShadow:scheduleMode===m.id?"0 1px 4px rgba(0,0,0,0.08)":"none",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:5,transition:"all 0.15s",whiteSpace:"nowrap"}}>
-                <Ic name={m.icon} size={12} color={scheduleMode===m.id?C.ink:C.ink3}/>{m.label}
+              <button key={m.id} onClick={()=>setScheduleMode(m.id)} style={{padding:"5px 12px",borderRadius:C.r.full,border:"none",cursor:"pointer",fontSize:C.f.xs,fontWeight:600,background:scheduleMode===m.id?C.bg1:"transparent",color:scheduleMode===m.id?C.ink:C.ink3,boxShadow:scheduleMode===m.id?"0 1px 3px rgba(0,0,0,0.1)":"none",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:5,transition:"all 0.15s",whiteSpace:"nowrap"}}>
+                <Ic name={m.icon} size={12} color={scheduleMode===m.id?C.acc:C.ink3}/>{m.label}
               </button>
             ))}
           </div>
@@ -1622,19 +2065,23 @@ export default function App(){
     </div>
 
     {/* スマホ: ボトムナビ */}
-    {isMobile&&<nav style={{position:"fixed",bottom:0,left:0,right:0,background:C.bg1,borderTop:`1px solid ${C.line}`,display:"flex",zIndex:60,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
-      <button onClick={()=>setShowSidebar(true)} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",WebkitTapHighlightColor:"transparent"}}>
-        <svg width="20" height="20" viewBox="0 0 18 18" fill="none" stroke={C.ink3} strokeWidth="1.7" strokeLinecap="round"><line x1="2" y1="4.5" x2="16" y2="4.5"/><line x1="2" y1="9" x2="16" y2="9"/><line x1="2" y1="13.5" x2="16" y2="13.5"/></svg>
-        <span style={{fontSize:9,fontWeight:500,color:C.ink3}}>メニュー</span>
+    {isMobile&&<nav style={{position:"fixed",bottom:0,left:0,right:0,background:C.bg1,borderTop:`1px solid ${C.line}`,display:"flex",zIndex:60,paddingBottom:"env(safe-area-inset-bottom,0px)",boxShadow:"0 -4px 20px rgba(0,0,0,0.06)"}}>
+      <button onClick={()=>setShowSidebar(true)} style={{flex:1,padding:"9px 0 7px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",WebkitTapHighlightColor:"transparent",color:C.ink3}}>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="1.5" y1="4" x2="14.5" y2="4"/><line x1="1.5" y1="8" x2="14.5" y2="8"/><line x1="1.5" y1="12" x2="14.5" y2="12"/></svg>
+        <span style={{fontSize:9,fontWeight:500}}>メニュー</span>
       </button>
-      {VIEWS.map(v=><button key={v.id} onClick={()=>setActiveView(v.id)} style={{flex:1,padding:"10px 0 8px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",WebkitTapHighlightColor:"transparent"}}>
-        <Ic name={v.icon} size={20} color={activeView===v.id?C.ink:C.ink3}/>
-        <span style={{fontSize:9,fontWeight:activeView===v.id?700:500,color:activeView===v.id?C.ink:C.ink3}}>{v.label}</span>
-      </button>)}
+      {VIEWS.map(v=>(
+        <button key={v.id} onClick={()=>setActiveView(v.id)} style={{flex:1,padding:"9px 0 7px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit",WebkitTapHighlightColor:"transparent",color:activeView===v.id?C.acc:C.ink3,transition:"color 0.15s"}}>
+          <div style={{width:22,height:22,borderRadius:C.r.sm,background:activeView===v.id?C.accBg:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"background 0.15s"}}>
+            <Ic name={v.icon} size={16} color={activeView===v.id?C.acc:C.ink3}/>
+          </div>
+          <span style={{fontSize:9,fontWeight:activeView===v.id?700:500}}>{v.label}</span>
+        </button>
+      ))}
     </nav>}
 
     {/* サイドバー */}
-    {showSidebar&&<Sidebar activeView={activeView} onNav={setActiveView} onClose={()=>setShowSidebar(false)} onShowAdd={()=>setShowAdd(true)} onShowAddEvent={()=>setShowAddEvent(true)} onShowEmail={()=>setShowEmail(true)} onShowThr={()=>setShowThr(true)} isMobile={isMobile} companies={companies} stats={stats} onCardTap={onCardTap} standaloneEvents={standaloneEvents} customCards={customCards} onAddCard={addCustomCard} onRemoveCard={removeCustomCard}/>}
+    {showSidebar&&<Sidebar activeView={activeView} onNav={setActiveView} onClose={()=>setShowSidebar(false)} onShowAdd={()=>setShowAdd(true)} onShowAddEvent={()=>setShowAddEvent(true)} onShowEmail={()=>setShowEmail(true)} onShowThr={()=>setShowThr(true)} onExportICS={()=>{const evts=allEvents.filter(e=>!e.done&&e.date>=today);exportICS(evts);setShowSidebar(false);}} isMobile={isMobile} companies={companies} stats={stats} onCardTap={onCardTap} standaloneEvents={standaloneEvents} customCards={customCards} onAddCard={addCustomCard} onRemoveCard={removeCustomCard}/>}
 
     {/* 詳細パネル */}
     {selected&&<DetailPanel company={selected} onClose={()=>setSelected(null)} onUpdate={patch=>updComp(selected.id,patch)} onDelete={()=>delComp(selected.id)} onToggleEvent={eid=>togEvt(selected.id,eid)} onDeleteEvent={delEvt} urg={urg} isMobile={isMobile}/>}
