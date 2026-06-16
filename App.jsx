@@ -2192,3 +2192,1131 @@ export default function App(){
     </Sheet>}
   </div></StatusSetterContext.Provider></StatusesContext.Provider>);
 }
+
+
+
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+
+// ─── レスポンシブ ─────────────────────────────────────────
+function useMobile(){ const [m,setM]=useState(()=>window.innerWidth<640); useEffect(()=>{const h=()=>setM(window.innerWidth<640);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h)},[]);return m; }
+
+// ─── デザイントークン ─────────────────────────────────────
+const C={
+  bg:"#F5F6F8", bg1:"#FFFFFF", bg2:"#F0F1F3", bg3:"#E4E4E7",
+  ink:"#0D0D0D", ink2:"#52525B", ink3:"#A1A1AA",
+  line:"#E4E4E7", acc:"#5B6EF5", accBg:"rgba(91,110,245,0.1)",
+  red:"#EF4444",redBg:"rgba(239,68,68,0.08)",
+  ora:"#F97316",oraBg:"rgba(249,115,22,0.08)",
+  yel:"#EAB308",yelBg:"rgba(234,179,8,0.08)",
+  grn:"#22C55E",grnBg:"rgba(34,197,94,0.08)",
+  blu:"#3B82F6",bluBg:"rgba(59,130,246,0.08)",
+  pur:"#8B5CF6",purBg:"rgba(139,92,246,0.08)",
+  r:{xs:4,sm:6,md:10,lg:14,xl:20,full:999},
+  f:{xs:10,sm:11,base:13,md:14,lg:16,xl:20,"2xl":28},
+};
+
+// ─── データ定義 ───────────────────────────────────────────
+const CATS=[
+  {id:"all",    label:"すべて"},
+  {id:"summer", label:"サマー",    color:"#92400E",bg:"#FEF3C7",border:"#FDE68A"},
+  {id:"autumn", label:"秋冬",      color:"#5B21B6",bg:"#EDE9FE",border:"#DDD6FE"},
+  {id:"winter", label:"冬",        color:"#1E40AF",bg:"#DBEAFE",border:"#BFDBFE"},
+  {id:"spring", label:"スプリング",color:"#065F46",bg:"#D1FAE5",border:"#A7F3D0"},
+  {id:"honsen", label:"本選考",    color:"#9F1239",bg:"#FFE4E6",border:"#FECDD3"},
+];
+const catOf=id=>CATS.find(c=>c.id===id)||CATS[0];
+
+const INDUSTRIES=["IT・Web","コンサル","金融・銀行","メーカー","広告・メディア","商社","インフラ","その他"];
+
+const EVT_TYPES=[
+  {id:"es",    label:"ES提出",  icon:"📄"},
+  {id:"test",  label:"Webテスト",icon:"💻"},
+  {id:"gr",    label:"GD・GW",  icon:"👥"},
+  {id:"int1",  label:"1次面接", icon:"🎤"},
+  {id:"int2",  label:"2次面接", icon:"🎤"},
+  {id:"int3",  label:"3次面接", icon:"🎤"},
+  {id:"final", label:"最終面接",icon:"⭐"},
+  {id:"offer", label:"内定",    icon:"🎉"},
+  {id:"info",  label:"会社説明会",icon:"🏢"},
+  {id:"other", label:"その他",  icon:"📌"},
+];
+
+const STANDALONE_KINDS=[
+  {id:"setsumeikai",label:"会社説明会",icon:"🏢",color:"#2563EB"},
+  {id:"godo",       label:"合同説明会",icon:"👥",color:"#7C3AED"},
+  {id:"fair",       label:"就活イベント",icon:"🌟",color:"#D97706"},
+  {id:"ob",         label:"OB・OG訪問",icon:"🎤",color:"#059669"},
+  {id:"seminar",    label:"セミナー",  icon:"💡",color:"#DC2626"},
+  {id:"other",      label:"その他",   icon:"📌",color:"#6B7280"},
+];
+const kindOf=id=>STANDALONE_KINDS.find(k=>k.id===id)||STANDALONE_KINDS[STANDALONE_KINDS.length-1];
+
+// サンプルイベント
+const SAMPLE_EVENTS=[
+  {id:101,kind:"godo",       name:"マイナビ就活フェア 2026夏",organizer:"マイナビ",         date:"2026-06-20",mode:"offline",location:"東京ビッグサイト",url:"",notes:"スーツ着用。履歴書10部持参。",done:false},
+  {id:102,kind:"setsumeikai",name:"DeNA会社説明会",           organizer:"DeNA",             date:"2026-06-25",mode:"online", location:"",url:"https://zoom.us/j/example",notes:"事前登録済み",done:false},
+  {id:103,kind:"ob",         name:"サイバーエージェント OB訪問",organizer:"サイバーエージェント",date:"2026-06-22",mode:"offline",location:"渋谷オフィス",url:"",notes:"先輩Aさん。カジュアル可",done:false},
+];
+const evtOf=id=>EVT_TYPES.find(e=>e.id===id)||EVT_TYPES[EVT_TYPES.length-1];
+
+const STATUSES=[
+  {id:"planning", label:"準備中",  color:"#6B7280",bg:"#F3F4F6",border:"#D1D5DB"},
+  {id:"applied",  label:"応募済み",color:C.blu,    bg:C.bluBg, border:"#BFDBFE"},
+  {id:"ongoing",  label:"選考中",  color:C.ora,    bg:C.oraBg, border:"#FDE68A"},
+  {id:"passed",   label:"通過",    color:C.grn,    bg:C.grnBg, border:"#BBF7D0"},
+  {id:"offer",    label:"内定",    color:C.pur,    bg:C.purBg, border:"#DDD6FE"},
+  {id:"rejected", label:"不合格",  color:C.red,    bg:C.redBg, border:"#FECACA"},
+  {id:"withdrawn",label:"辞退",    color:"#9CA3AF",bg:C.bg2,   border:C.line},
+];
+const stOf=id=>STATUSES.find(s=>s.id===id)||STATUSES[0];
+
+// ボード列グループ
+const BOARD_COLS=[
+  {id:"col_ready",  label:"準備中",  ids:["planning"],                    color:"#6B7280",bg:"#F3F4F6",border:"#D1D5DB"},
+  {id:"col_active", label:"選考中",  ids:["applied","ongoing","passed"],  color:C.ora,    bg:C.oraBg, border:"#FDE68A"},
+  {id:"col_done",   label:"結果",    ids:["offer","rejected","withdrawn"],color:C.pur,    bg:C.purBg, border:"#DDD6FE"},
+];
+
+const today=new Date().toISOString().slice(0,10);
+const fmtS=d=>{if(!d)return"—";const dt=new Date(d);return`${dt.getMonth()+1}/${dt.getDate()}`};
+const fmtM=d=>{if(!d)return"—";const dt=new Date(d);const w=["日","月","火","水","木","金","土"];return`${dt.getMonth()+1}/${dt.getDate()}(${w[dt.getDay()]})`};
+const daysLeft=d=>{if(!d)return null;return Math.ceil((new Date(d)-new Date(today))/86400000)};
+const urgLevel=d=>{const n=daysLeft(d);if(n===null)return 0;if(n<0)return 3;if(n<=3)return 2;if(n<=7)return 1;return 0};
+const urgColor=u=>u===3?C.red:u===2?C.ora:u===1?C.yel:"transparent";
+const urgBg=u=>u===3?C.redBg:u===2?C.oraBg:u===1?C.yelBg:"transparent";
+
+// サンプルデータ
+const SAMPLE=[
+  {id:1,company:"サイバーエージェント",industry:"IT・Web",cat:"summer",status:"ongoing",priority:true,deadline:"2026-06-18",notes:"技術課題あり",
+    events:[{id:1,type:"es",date:"2026-06-10",done:true,mode:"online",notes:""},{id:2,type:"int1",date:"2026-06-18",done:false,mode:"online",notes:"技術面接"},{id:3,type:"int2",date:"2026-07-05",done:false,mode:"offline",notes:""}]},
+  {id:2,company:"メルカリ",industry:"IT・Web",cat:"honsen",status:"applied",priority:false,deadline:"2026-06-20",notes:"OB訪問済み",
+    events:[{id:1,type:"es",date:"2026-06-09",done:true,mode:"online",notes:""},{id:2,type:"test",date:"2026-06-20",done:false,mode:"online",notes:"SPI"}]},
+  {id:3,company:"マッキンゼー",industry:"コンサル",cat:"summer",status:"ongoing",priority:true,deadline:"2026-07-05",notes:"ケース面接の練習必要",
+    events:[{id:1,type:"es",date:"2026-06-01",done:true,mode:"online",notes:""},{id:2,type:"int1",date:"2026-06-22",done:false,mode:"offline",notes:"東京オフィス"}]},
+  {id:4,company:"Sony",industry:"メーカー",cat:"honsen",status:"offer",priority:false,deadline:"2026-05-01",notes:"6月末までに承諾",
+    events:[{id:1,type:"es",date:"2026-04-01",done:true,mode:"online",notes:""},{id:2,type:"offer",date:"2026-05-30",done:true,mode:"online",notes:""}]},
+  {id:5,company:"電通",industry:"広告・メディア",cat:"summer",status:"planning",priority:false,deadline:"2026-06-10",notes:"",
+    events:[{id:1,type:"es",date:"2026-06-10",done:false,mode:"online",notes:""}]},
+  {id:6,company:"LINE",industry:"IT・Web",cat:"winter",status:"ongoing",priority:false,deadline:"2026-06-25",notes:"",
+    events:[{id:1,type:"es",date:"2025-12-15",done:true,mode:"online",notes:""},{id:2,type:"int1",date:"2026-06-25",done:false,mode:"online",notes:""}]},
+];
+
+// ─── UI パーツ ────────────────────────────────────────────
+const iSt={width:"100%",padding:"9px 12px",border:`1.5px solid ${C.line}`,borderRadius:C.r.md,fontSize:C.f.base,outline:"none",background:C.bg1,color:C.ink,boxSizing:"border-box",fontFamily:"inherit",transition:"border-color 0.15s"};
+
+function SI({style:sx,...props}){const[f,sF]=useState(false);return<input {...props} style={{...iSt,...(f?{borderColor:C.ink}:{}),..sx}} onFocus={()=>sF(true)} onBlur={()=>sF(false)}/>}
+function SS({style:sx,...props}){const[f,sF]=useState(false);return<select {...props} style={{...iSt,...(f?{borderColor:C.ink}:{}),..sx}} onFocus={()=>sF(true)} onBlur={()=>sF(false)}/>}
+function STA({style:sx,...props}){const[f,sF]=useState(false);return<textarea {...props} style={{...iSt,resize:"vertical",...(f?{borderColor:C.ink}:{}),..sx}} onFocus={()=>sF(true)} onBlur={()=>sF(false)}/>}
+
+function Fld({label,hint,children}){return<div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><label style={{fontSize:C.f.xs,fontWeight:600,color:C.ink2}}>{label}</label>{hint&&<span style={{fontSize:9,color:C.ink3}}>{hint}</span>}</div>{children}</div>}
+
+function Modal({children,onClose,isMobile,width=480}){
+  return<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",display:"flex",alignItems:isMobile?"flex-end":"center",justifyContent:"center",zIndex:200,backdropFilter:"blur(2px)"}} onClick={onClose}>
+    <div style={{background:C.bg1,borderRadius:isMobile?`${C.r.xl}px ${C.r.xl}px 0 0`:`${C.r.xl}px`,width:isMobile?"100%":width,maxHeight:isMobile?"92vh":"88vh",display:"flex",flexDirection:"column",boxShadow:"0 8px 48px rgba(0,0,0,0.15)",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+      {isMobile&&<div style={{padding:"10px 0 4px",display:"flex",justifyContent:"center",flexShrink:0}}><div style={{width:36,height:4,borderRadius:2,background:C.line}}/></div>}
+      <div style={{flex:1,overflowY:"auto",padding:isMobile?"16px 18px 32px":"24px 28px"}}>{children}</div>
+    </div>
+  </div>
+}
+
+function ModalHeader({title,sub,onClose}){return<div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}><div><div style={{fontSize:C.f.lg,fontWeight:800,letterSpacing:-0.5,marginBottom:2}}>{title}</div>{sub&&<div style={{fontSize:C.f.xs,color:C.ink3}}>{sub}</div>}</div><button onClick={onClose} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${C.line}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>✕</button></div>}
+
+function Btn({children,onClick,primary,danger,disabled,style:sx}){
+  const base={padding:"8px 18px",borderRadius:C.r.full,border:`1.5px solid ${C.line}`,background:C.bg1,cursor:disabled?"not-allowed":"pointer",fontSize:C.f.base,color:C.ink2,fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:6,fontWeight:500,transition:"all 0.15s",whiteSpace:"nowrap",opacity:disabled?0.45:1,...sx};
+  const s=primary?{...base,background:C.acc,color:"#fff",border:"none",fontWeight:600,boxShadow:`0 2px 8px ${C.acc}30`}:danger?{...base,color:C.red,borderColor:"rgba(239,68,68,0.3)"}:base;
+  return<button onClick={onClick} disabled={disabled} style={s}>{children}</button>
+}
+
+function Check({done,onChange,size=22}){return<button onClick={e=>{e.stopPropagation();onChange()}} style={{width:size,height:size,borderRadius:"50%",border:`2px solid ${done?"#22C55E":C.line}`,background:done?"#22C55E":"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0,transition:"all 0.15s"}}>{done&&<span style={{color:"#fff",fontSize:size*0.55,lineHeight:1}}>✓</span>}</button>}
+
+function CatTag({cat}){const c=catOf(cat);if(!c.color)return null;return<span style={{fontSize:9,fontWeight:700,color:c.color,background:c.bg,border:`1px solid ${c.border}`,padding:"1px 6px",borderRadius:C.r.full,whiteSpace:"nowrap",flexShrink:0}}>{c.label}</span>}
+function StTag({status}){const s=stOf(status);return<span style={{fontSize:9,fontWeight:600,color:s.color,background:s.bg,border:`1px solid ${s.border}`,padding:"1px 6px",borderRadius:C.r.full,whiteSpace:"nowrap",flexShrink:0}}>{s.label}</span>}
+
+function UrgBadge({date,done}){
+  if(done)return null;const u=urgLevel(date);if(!u)return null;
+  const n=daysLeft(date);const col=urgColor(u);
+  return<span style={{fontSize:9,fontWeight:700,color:col,background:urgBg(u),padding:"1px 7px",borderRadius:C.r.full,whiteSpace:"nowrap"}}>{n<0?"期限切れ":n===0?"今日！":`あと${n}日`}</span>
+}
+
+// Googleカレンダー追加リンク
+function GcalLink({title,date,notes=""}){
+  if(!date)return null;
+  const d=date.replace(/-/g,"");
+  const nd=new Date(date);nd.setDate(nd.getDate()+1);
+  const nd2=nd.toISOString().slice(0,10).replace(/-/g,"");
+  const url=`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${d}/${nd2}&details=${encodeURIComponent(notes)}`;
+  return<a href={url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:9,fontWeight:600,color:"#4285F4",background:"rgba(66,133,244,0.08)",border:"1px solid rgba(66,133,244,0.2)",padding:"2px 7px",borderRadius:C.r.full,textDecoration:"none",whiteSpace:"nowrap",flexShrink:0}}>Gcal</a>
+}
+
+// ─── 通知ベル ─────────────────────────────────────────────
+function Bell({companies}){
+  const [open,setOpen]=useState(false);
+  const ref=useRef();
+  useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h)},[]);
+  const alerts=useMemo(()=>{
+    const out=[];
+    companies.forEach(c=>{
+      if(!["rejected","withdrawn","offer"].includes(c.status)){
+        const u=urgLevel(c.deadline);
+        if(u>0)out.push({id:`d${c.id}`,company:c.company,text:`ES締切 ${fmtM(c.deadline)}`,u,date:c.deadline});
+        c.events.forEach(e=>{if(!e.done&&e.date){const u=urgLevel(e.date);if(u>0)out.push({id:`e${c.id}-${e.id}`,company:c.company,text:`${evtOf(e.type).label} ${fmtM(e.date)}`,u,date:e.date})}});
+      }
+    });
+    return out.sort((a,b)=>b.u-a.u||a.date.localeCompare(b.date)).slice(0,15);
+  },[companies]);
+  return(
+    <div ref={ref} style={{position:"relative"}}>
+      <button onClick={()=>setOpen(o=>!o)} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${C.line}`,background:C.bg1,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+        🔔
+        {alerts.length>0&&<span style={{position:"absolute",top:1,right:1,width:15,height:15,borderRadius:"50%",background:C.red,color:"#fff",fontSize:8,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",border:`2px solid ${C.bg1}`}}>{alerts.length>9?"9+":alerts.length}</span>}
+      </button>
+      {open&&(
+        <div style={{position:"absolute",right:0,top:"calc(100% + 8px)",width:300,background:C.bg1,border:`1px solid ${C.line}`,borderRadius:C.r.lg,boxShadow:"0 8px 32px rgba(0,0,0,0.12)",zIndex:400,overflow:"hidden"}}>
+          <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.line}`,fontSize:C.f.sm,fontWeight:700}}>期限アラート</div>
+          {alerts.length===0?<div style={{padding:"24px 0",textAlign:"center",color:C.ink3,fontSize:C.f.sm}}>期限の近い予定はありません</div>
+          :alerts.map(a=>(
+            <div key={a.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",borderBottom:`1px solid ${C.line}`}}>
+              <span style={{fontSize:14}}>{a.u===3?"🔴":a.u===2?"🟠":"🟡"}</span>
+              <div><div style={{fontSize:C.f.sm,fontWeight:700,marginBottom:2}}>{a.company}</div><div style={{fontSize:C.f.xs,color:C.ink2}}>{a.text}</div></div>
+              <UrgBadge date={a.date} done={false}/>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 今日ビュー ───────────────────────────────────────────
+function TodayView({companies,allEvents,onSelect,onToggle,onShowAdd,isMobile}){
+  const now=new Date();
+  const w7=new Date();w7.setDate(w7.getDate()+7);
+  const w7s=w7.toISOString().slice(0,10);
+  const tom=new Date();tom.setDate(tom.getDate()+1);
+  const toms=tom.toISOString().slice(0,10);
+
+  const upcoming=allEvents.filter(e=>!e.done&&e.date>=today&&e.date<=w7s).sort((a,b)=>a.date.localeCompare(b.date));
+  const todayE=upcoming.filter(e=>e.date===today);
+  const tomE=upcoming.filter(e=>e.date===toms);
+  const weekE=upcoming.filter(e=>e.date>toms);
+
+  const needAction=companies.filter(c=>{
+    if(["rejected","withdrawn","offer"].includes(c.status))return false;
+    return urgLevel(c.deadline)>0||c.events.some(e=>!e.done&&urgLevel(e.date)>0);
+  }).sort((a,b)=>Math.max(urgLevel(b.deadline),...b.events.map(e=>urgLevel(e.date)))-Math.max(urgLevel(a.deadline),...a.events.map(e=>urgLevel(e.date))));
+
+  const inProgress=companies.filter(c=>["applied","ongoing","passed"].includes(c.status));
+
+  const Sec=({emoji,title,color,children})=>(
+    <div style={{marginBottom:22}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
+        <span style={{fontSize:14}}>{emoji}</span>
+        <span style={{fontSize:C.f.sm,fontWeight:700,color:color||C.ink}}>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+
+  const EvtRow=({e,compact})=>{
+    const et=evtOf(e.type);const cat=catOf(e.category);const u=urgLevel(e.date);
+    return(
+      <div style={{background:C.bg1,border:`1px solid ${u>1?urgColor(u)+"40":C.line}`,borderRadius:C.r.md,padding:compact?"8px 12px":"11px 14px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",transition:"box-shadow 0.15s",marginBottom:6}}
+        onClick={()=>onSelect(e.companyId)}
+        onMouseEnter={ev=>ev.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.07)"}
+        onMouseLeave={ev=>ev.currentTarget.style.boxShadow=""}>
+        <span style={{fontSize:compact?16:18,flexShrink:0}}>{et.icon}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap"}}>
+            <span style={{fontSize:C.f.base,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.company}</span>
+            {cat.color&&<CatTag cat={e.category}/>}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <span style={{fontSize:C.f.xs,color:u>0?urgColor(u):C.ink2,fontWeight:u>0?700:400}}>{et.label}</span>
+            <span style={{fontSize:C.f.xs,color:C.ink3}}>{fmtM(e.date)}</span>
+            {!compact&&<UrgBadge date={e.date} done={false}/>}
+            <GcalLink title={`${e.company} ${et.label}`} date={e.date} notes={e.notes||""}/>
+          </div>
+        </div>
+        <Check done={e.done} onChange={()=>onToggle(e.companyId,e.id)} size={22}/>
+      </div>
+    );
+  };
+
+  return(
+    <div style={{padding:isMobile?"14px 14px 90px":"20px 0 40px"}}>
+      {/* グリーティング */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:isMobile?18:22,fontWeight:800,letterSpacing:-0.5,marginBottom:4}}>
+          {now.getHours()<12?"おはようございます 🌅":now.getHours()<18?"こんにちは ☀️":"こんばんは 🌙"}
+        </div>
+        <div style={{fontSize:C.f.base,color:C.ink2}}>
+          {todayE.length>0?`今日${todayE.length}件の予定があります`:needAction.length>0?`${needAction.length}社が期限注意です`:"今週の緊急タスクはありません ✅"}
+        </div>
+      </div>
+
+      {/* 今日 */}
+      {todayE.length>0&&<Sec emoji="🔴" title="今日の予定" color={C.red}>{todayE.map((e,i)=><EvtRow key={i} e={e}/>)}</Sec>}
+      {/* 明日 */}
+      {tomE.length>0&&<Sec emoji="🟠" title="明日" color={C.ora}>{tomE.map((e,i)=><EvtRow key={i} e={e}/>)}</Sec>}
+      {/* 今週 */}
+      {weekE.length>0&&<Sec emoji="📅" title="今週中">{weekE.map((e,i)=><EvtRow key={i} e={e} compact/>)}</Sec>}
+
+      {/* 全部なし */}
+      {upcoming.length===0&&(
+        <div style={{background:C.grnBg,border:"1px solid rgba(34,197,94,0.25)",borderRadius:C.r.lg,padding:"18px",marginBottom:20,display:"flex",gap:12,alignItems:"center"}}>
+          <span style={{fontSize:24}}>✅</span>
+          <div><div style={{fontSize:C.f.md,fontWeight:700,color:C.grn,marginBottom:2}}>今週は全部対応済み！</div><div style={{fontSize:C.f.sm,color:C.ink2}}>引き続き選考を進めましょう</div></div>
+        </div>
+      )}
+
+      {/* 期限注意の企業 */}
+      {needAction.length>0&&(
+        <Sec emoji="⚠️" title="期限注意の企業" color={C.red}>
+          {needAction.map(c=>{
+            const maxU=Math.max(urgLevel(c.deadline),...c.events.filter(e=>!e.done).map(e=>urgLevel(e.date)));
+            const nxt=c.events.filter(e=>!e.done&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
+            return(
+              <div key={c.id} onClick={()=>onSelect(c.id)}
+                style={{background:C.bg1,border:`1.5px solid ${urgColor(maxU)}30`,borderLeft:`3px solid ${urgColor(maxU)}`,borderRadius:C.r.md,padding:"11px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,marginBottom:6,transition:"box-shadow 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.07)"}
+                onMouseLeave={e=>e.currentTarget.style.boxShadow=""}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                    <span style={{fontSize:C.f.base,fontWeight:700}}>{c.company}</span>
+                    <CatTag cat={c.cat}/>
+                    <StTag status={c.status}/>
+                  </div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {c.deadline&&urgLevel(c.deadline)>0&&<span style={{fontSize:C.f.xs,color:urgColor(urgLevel(c.deadline)),fontWeight:700}}>締切 {fmtM(c.deadline)}</span>}
+                    {nxt&&<span style={{fontSize:C.f.xs,color:C.ink2}}>{evtOf(nxt.type).label} {fmtM(nxt.date)}</span>}
+                  </div>
+                </div>
+                <span style={{color:C.ink3}}>›</span>
+              </div>
+            );
+          })}
+        </Sec>
+      )}
+
+      {/* 選考中一覧 */}
+      {inProgress.length>0&&(
+        <Sec emoji="📊" title="選考中の企業">
+          <div style={{background:C.bg1,border:`1px solid ${C.line}`,borderRadius:C.r.lg,overflow:"hidden"}}>
+            {inProgress.map((c,i)=>{
+              const st=stOf(c.status);const done=c.events.filter(e=>e.done).length;const total=c.events.length;const pct=total>0?Math.round(done/total*100):0;
+              return(
+                <div key={c.id} onClick={()=>onSelect(c.id)}
+                  style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",borderBottom:i<inProgress.length-1?`1px solid ${C.line}`:"none",cursor:"pointer",transition:"background 0.1s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=C.bg2}
+                  onMouseLeave={e=>e.currentTarget.style.background=""}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:5,flexWrap:"wrap"}}>
+                      <span style={{fontSize:C.f.base,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.company}</span>
+                      <CatTag cat={c.cat}/>
+                      <StTag status={c.status}/>
+                    </div>
+                    {total>0&&<div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <div style={{flex:1,height:3,background:C.bg2,borderRadius:C.r.full,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.grn:C.acc,borderRadius:C.r.full}}/></div>
+                      <span style={{fontSize:9,color:C.ink3}}>{done}/{total}</span>
+                    </div>}
+                  </div>
+                  <span style={{color:C.ink3}}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        </Sec>
+      )}
+
+      {companies.length===0&&(
+        <div style={{textAlign:"center",padding:"48px 16px"}}>
+          <div style={{fontSize:48,marginBottom:16}}>📋</div>
+          <div style={{fontSize:C.f.lg,fontWeight:700,marginBottom:8}}>まず企業を追加しよう</div>
+          <div style={{fontSize:C.f.sm,color:C.ink2,marginBottom:24}}>応募したい企業を登録して管理できます</div>
+          <Btn primary onClick={onShowAdd}>＋ 最初の企業を追加</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ボードビュー ─────────────────────────────────────────
+function BoardView({companies,onSelect,isMobile}){
+  const [zoom,setZoom]=useState(isMobile?0.65:1);
+  const ZOOMS=[0.5,0.6,0.7,0.8,0.9,1];
+  const zi=ZOOMS.findIndex(z=>Math.abs(z-zoom)<0.01);
+  const colW=Math.round((isMobile?155:185)*zoom);
+  const mob=isMobile&&zoom<0.85;
+
+  return(
+    <div style={{padding:isMobile?"10px 14px 90px":0}}>
+      {isMobile&&(
+        <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:6,marginBottom:10}}>
+          <span style={{fontSize:C.f.xs,color:C.ink3}}>サイズ</span>
+          <button onClick={()=>zi>0&&setZoom(ZOOMS[zi-1])} disabled={zi===0} style={{width:26,height:26,borderRadius:"50%",border:`1px solid ${C.line}`,background:zi>0?C.bg1:"transparent",cursor:zi>0?"pointer":"default",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",opacity:zi>0?1:0.35}}>−</button>
+          <span style={{fontSize:C.f.xs,color:C.ink2,minWidth:32,textAlign:"center",fontWeight:600}}>{Math.round(zoom*100)}%</span>
+          <button onClick={()=>zi<ZOOMS.length-1&&setZoom(ZOOMS[zi+1])} disabled={zi===ZOOMS.length-1} style={{width:26,height:26,borderRadius:"50%",border:`1px solid ${C.line}`,background:zi<ZOOMS.length-1?C.bg1:"transparent",cursor:zi<ZOOMS.length-1?"pointer":"default",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",opacity:zi<ZOOMS.length-1?1:0.35}}>＋</button>
+        </div>
+      )}
+      <div style={{overflowX:mob?"hidden":"auto",WebkitOverflowScrolling:"touch"}}>
+        <div style={{display:"grid",gridTemplateColumns:BOARD_COLS.map(()=>`${colW}px`).join(" "),gap:mob?6:10,minWidth:mob?"unset":"max-content",width:mob?"100%":undefined,alignItems:"start"}}>
+          {BOARD_COLS.map(col=>{
+            const cards=companies.filter(c=>col.ids.includes(c.status));
+            return(
+              <div key={col.id}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <span style={{width:6,height:6,borderRadius:"50%",background:col.color,display:"inline-block"}}/>
+                    <span style={{fontSize:mob?9:C.f.sm,fontWeight:700,color:col.color}}>{col.label}</span>
+                  </div>
+                  <span style={{fontSize:mob?8:C.f.xs,fontWeight:700,color:col.color,background:col.bg,border:`1px solid ${col.border}`,padding:"1px 6px",borderRadius:C.r.full}}>{cards.length}</span>
+                </div>
+                <div style={{height:2,background:col.color+"30",borderRadius:2,marginBottom:8}}/>
+                {cards.length===0?<div style={{padding:"20px 0",textAlign:"center",color:C.ink3,fontSize:mob?8:C.f.sm}}>—</div>
+                :cards.map(c=>{
+                  const st=stOf(c.status);
+                  const nxt=c.events.filter(e=>!e.done&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
+                  const maxU=Math.max(urgLevel(c.deadline),nxt?urgLevel(nxt.date):0);
+                  const catC=catOf(c.cat);
+                  return(
+                    <div key={c.id} onClick={()=>onSelect(c)}
+                      style={{background:C.bg1,borderRadius:mob?4:C.r.md,borderTop:`${mob?2:3}px solid ${catC.color||C.line}`,border:`1px solid ${C.line}`,padding:mob?"6px 7px":"11px 13px",marginBottom:mob?4:7,cursor:"pointer",transition:"box-shadow 0.15s"}}
+                      onMouseEnter={e=>e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.07)"}
+                      onMouseLeave={e=>e.currentTarget.style.boxShadow=""}>
+                      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:4,marginBottom:mob?2:4}}>
+                        <span style={{fontSize:mob?8:C.f.base,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{c.company}</span>
+                        {c.priority&&!mob&&<span>⭐</span>}
+                      </div>
+                      {!mob&&(
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:nxt?7:0}}>
+                          {catC.color&&<CatTag cat={c.cat}/>}
+                          {col.ids.length>1&&<StTag status={c.status}/>}
+                        </div>
+                      )}
+                      {mob&&catC.color&&<div style={{width:4,height:4,borderRadius:"50%",background:catC.color,marginBottom:2}}/>}
+                      {nxt&&!mob&&(
+                        <div style={{display:"flex",alignItems:"center",gap:5}}>
+                          <span style={{fontSize:10}}>{evtOf(nxt.type).icon}</span>
+                          <span style={{fontSize:C.f.xs,color:maxU>0?urgColor(maxU):C.ink2,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtS(nxt.date)} {evtOf(nxt.type).label}</span>
+                          {maxU>0&&<UrgBadge date={nxt.date} done={false}/>}
+                        </div>
+                      )}
+                      {nxt&&mob&&<div style={{fontSize:7,color:maxU>0?urgColor(maxU):C.ink3}}>{fmtS(nxt.date)}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── カレンダービュー ─────────────────────────────────────
+function CalView({allEvents,onSelect,isMobile}){
+  const now=new Date();
+  const[yr,setYr]=useState(now.getFullYear());
+  const[mo,setMo]=useState(now.getMonth());
+  const[sel,setSel]=useState(null);
+  const prev=()=>{if(mo===0){setMo(11);setYr(y=>y-1)}else setMo(m=>m-1);setSel(null)};
+  const next=()=>{if(mo===11){setMo(0);setYr(y=>y+1)}else setMo(m=>m+1);setSel(null)};
+  const first=new Date(yr,mo,1).getDay();
+  const days=new Date(yr,mo+1,0).getDate();
+  const cells=[...Array(first).fill(null),...Array.from({length:days},(_,i)=>i+1)];
+  while(cells.length%7)cells.push(null);
+  const ds=d=>d?`${yr}-${String(mo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`:"";
+  const byDay=useMemo(()=>{const m={};allEvents.forEach(e=>{if(e.date){if(!m[e.date])m[e.date]=[];m[e.date].push(e)}});return m},[allEvents]);
+  const selEvts=sel?(byDay[ds(sel)]||[]):[];
+  const todEvts=byDay[today]||[];
+  const upEvts=allEvents.filter(e=>!e.done&&e.date>=today).slice(0,8);
+  return(
+    <div style={{padding:isMobile?"10px 14px 90px":0}}>
+      <div style={{display:"flex",flexDirection:isMobile?"column":"row",gap:16}}>
+        {/* カレンダー本体 */}
+        <div style={{flex:1,background:C.bg1,border:`1px solid ${C.line}`,borderRadius:C.r.lg,overflow:"hidden"}}>
+          <div style={{display:"flex",alignItems:"center",padding:"12px 14px",borderBottom:`1px solid ${C.line}`}}>
+            <button onClick={prev} style={{border:"none",background:"none",cursor:"pointer",fontSize:16,color:C.ink2,padding:"4px 8px"}}>‹</button>
+            <span style={{flex:1,textAlign:"center",fontSize:C.f.md,fontWeight:700}}>{yr}年{mo+1}月</span>
+            <button onClick={next} style={{border:"none",background:"none",cursor:"pointer",fontSize:16,color:C.ink2,padding:"4px 8px"}}>›</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",background:C.bg2,borderBottom:`1px solid ${C.line}`}}>
+            {["日","月","火","水","木","金","土"].map((w,i)=>(
+              <div key={w} style={{padding:"6px 0",textAlign:"center",fontSize:C.f.xs,fontWeight:700,color:i===0?C.red:i===6?C.blu:C.ink3}}>{w}</div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+            {cells.map((d,i)=>{
+              const dstr=ds(d);const evts=d?(byDay[dstr]||[]):[];const isT=dstr===today;const isSel=d&&dstr===ds(sel);const dow=i%7;
+              return(
+                <div key={i} onClick={()=>d&&setSel(d===sel?null:d)}
+                  style={{minHeight:isMobile?58:72,padding:"4px 3px",borderRight:`1px solid ${C.line}`,borderBottom:`1px solid ${C.line}`,background:isSel?C.ink:isT?C.accBg:"transparent",cursor:d?"pointer":"default",transition:"background 0.1s"}}>
+                  {d&&<>
+                    <div style={{display:"flex",justifyContent:"center",marginBottom:3}}>
+                      <span style={{fontSize:C.f.sm,fontWeight:isT||isSel?800:400,width:22,height:22,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:isSel?"#fff":isT?C.acc:dow===0?C.red:dow===6?C.blu:C.ink,background:isT&&!isSel?C.accBg:"transparent"}}>{d}</span>
+                    </div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:1.5,justifyContent:"center",paddingLeft:2,paddingRight:2}}>
+                      {evts.slice(0,isMobile?2:3).map((e,ei)=>{
+                        const cat=catOf(e.category);const u=urgLevel(e.date);
+                        const col=e.done?"#ccc":u>1?urgColor(u):cat.color||C.acc;
+                        if(isMobile){
+                          return<span key={ei} style={{width:4,height:4,borderRadius:"50%",background:isSel?"rgba(255,255,255,0.7)":col,flexShrink:0}}/>;
+                        }
+                        return(
+                          <div key={ei} style={{width:"100%",fontSize:8,fontWeight:600,color:isSel?"#fff":col,background:isSel?"rgba(255,255,255,0.15)":(cat.bg||C.accBg),padding:"1px 3px",borderRadius:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.4}}>
+                            {e.company.slice(0,4)}
+                          </div>
+                        );
+                      })}
+                      {evts.length>3&&!isMobile&&<div style={{fontSize:8,color:isSel?"rgba(255,255,255,0.7)":C.ink3,width:"100%",textAlign:"left",paddingLeft:3}}>+{evts.length-3}</div>}
+                    </div>
+                  </>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* 右サイドパネル */}
+        <div style={{width:isMobile?"100%":260,flexShrink:0}}>
+          <div style={{background:C.bg1,border:`1px solid ${C.line}`,borderRadius:C.r.lg,overflow:"hidden"}}>
+            <div style={{padding:"11px 14px",borderBottom:`1px solid ${C.line}`,fontSize:C.f.base,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              {sel?`${mo+1}月${sel}日`:"今後の予定"}
+              {sel&&<button onClick={()=>setSel(null)} style={{border:"none",background:"none",cursor:"pointer",color:C.ink3,fontSize:14}}>✕</button>}
+            </div>
+            <div style={{maxHeight:isMobile?220:380,overflowY:"auto"}}>
+              {(sel?selEvts:upEvts).length===0
+                ?<div style={{padding:"24px 0",textAlign:"center",color:C.ink3,fontSize:C.f.sm}}>予定なし</div>
+                :(sel?selEvts:upEvts).map((e,i)=>{
+                  const et=evtOf(e.type);const u=urgLevel(e.date);
+                  return(
+                    <div key={i} onClick={()=>onSelect(e.companyId)}
+                      style={{display:"flex",alignItems:"flex-start",gap:9,padding:"10px 14px",borderBottom:`1px solid ${C.line}`,cursor:"pointer",transition:"background 0.1s"}}
+                      onMouseEnter={ev=>ev.currentTarget.style.background=C.bg2}
+                      onMouseLeave={ev=>ev.currentTarget.style.background=""}>
+                      <span style={{fontSize:14}}>{et.icon}</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:C.f.sm,fontWeight:700,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.company}</div>
+                        <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+                          <span style={{fontSize:C.f.xs,color:u>0?urgColor(u):C.ink2}}>{et.label}</span>
+                          <span style={{fontSize:C.f.xs,color:C.ink3}}>{fmtS(e.date)}</span>
+                          <GcalLink title={`${e.company} ${et.label}`} date={e.date}/>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── 一覧ビュー ───────────────────────────────────────────
+function ListView({companies,onSelect,onDelete,isMobile}){
+  return(
+    <div style={{padding:isMobile?"10px 14px 90px":0}}>
+      {companies.length===0
+        ?<div style={{padding:"48px 0",textAlign:"center",color:C.ink3}}>企業がありません</div>
+        :<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {companies.map(c=>{
+            const nxt=c.events.filter(e=>!e.done&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
+            const maxU=Math.max(urgLevel(c.deadline),nxt?urgLevel(nxt.date):0);
+            return(
+              <div key={c.id} style={{background:C.bg1,border:`1px solid ${maxU>1?urgColor(maxU)+"40":C.line}`,borderRadius:C.r.md,overflow:"hidden",transition:"box-shadow 0.15s"}}
+                onMouseEnter={e=>e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.07)"}
+                onMouseLeave={e=>e.currentTarget.style.boxShadow=""}>
+                <div onClick={()=>onSelect(c)} style={{padding:"12px 14px",cursor:"pointer"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:7}}>
+                    <div>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                        {c.priority&&<span>⭐</span>}
+                        <span style={{fontSize:C.f.md,fontWeight:700}}>{c.company}</span>
+                      </div>
+                      <span style={{fontSize:C.f.xs,color:C.ink3}}>{c.industry}</span>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end"}}>
+                      <StTag status={c.status}/>
+                      <CatTag cat={c.cat}/>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    {c.deadline&&<span style={{fontSize:C.f.xs,color:urgLevel(c.deadline)>0?urgColor(urgLevel(c.deadline)):C.ink3}}>締切 {fmtS(c.deadline)}</span>}
+                    <UrgBadge date={c.deadline} done={false}/>
+                    {nxt&&<span style={{fontSize:C.f.xs,color:C.ink2}}>{evtOf(nxt.type).icon} {evtOf(nxt.type).label} {fmtS(nxt.date)}</span>}
+                  </div>
+                </div>
+                <div style={{borderTop:`1px solid ${C.line}`,display:"flex"}}>
+                  <button onClick={()=>onSelect(c)} style={{flex:1,padding:"8px",background:"none",border:"none",cursor:"pointer",fontSize:C.f.xs,color:C.ink2,fontFamily:"inherit",fontWeight:600}}>詳細</button>
+                  <div style={{width:1,background:C.line}}/>
+                  <button onClick={()=>onDelete(c.id)} style={{padding:"8px 14px",background:"none",border:"none",cursor:"pointer",color:C.red,fontSize:C.f.xs,fontFamily:"inherit"}}>削除</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      }
+    </div>
+  );
+}
+
+// ─── 詳細パネル ───────────────────────────────────────────
+function DetailPanel({company:c,onClose,onUpdate,onDelete,onToggleEvent,onDeleteEvent,isMobile}){
+  const[editing,setEditing]=useState(false);
+  const[showAdd,setShowAdd]=useState(false);
+  const[form,setForm]=useState({company:c.company,industry:c.industry,cat:c.cat,status:c.status,deadline:c.deadline,notes:c.notes||"",priority:c.priority});
+  const[ef,setEf]=useState({type:"es",date:"",mode:"online",notes:""});
+  const[nid,setNid]=useState(9000);
+  const sorted=[...c.events].sort((a,b)=>a.date.localeCompare(b.date));
+  const done=c.events.filter(e=>e.done).length,pct=c.events.length?Math.round(done/c.events.length*100):0;
+  const save=()=>{onUpdate(form);setEditing(false)};
+  const addEvt=()=>{if(!ef.date)return;const et=evtOf(ef.type);onUpdate({events:[...c.events,{id:nid,type:ef.type,label:et.label,date:ef.date,done:false,mode:ef.mode,notes:ef.notes}].sort((a,b)=>a.date.localeCompare(b.date))});setNid(n=>n+1);setShowAdd(false);setEf({type:"es",date:"",mode:"online",notes:""})};
+  const ps=isMobile?{position:"fixed",inset:0,background:C.bg1,zIndex:150,display:"flex",flexDirection:"column"}:{position:"fixed",right:0,top:0,bottom:0,width:400,background:C.bg1,borderLeft:`1px solid ${C.line}`,zIndex:150,display:"flex",flexDirection:"column",boxShadow:"-4px 0 32px rgba(0,0,0,0.08)"};
+  return(
+    <div style={ps}>
+      <div style={{padding:isMobile?"14px 16px":"16px 20px",borderBottom:`1px solid ${C.line}`,flexShrink:0}}>
+        {isMobile&&<div style={{width:36,height:4,borderRadius:2,background:C.line,margin:"0 auto 12px"}}/>}
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}>
+          <div>
+            <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:5}}>
+              {c.priority&&<span>⭐</span>}
+              <span style={{fontSize:isMobile?C.f.lg:C.f.xl,fontWeight:800,letterSpacing:-0.5}}>{c.company}</span>
+            </div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              <StTag status={c.status}/><CatTag cat={c.cat}/>
+              {c.industry&&<span style={{fontSize:C.f.xs,color:C.ink3}}>{c.industry}</span>}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6,flexShrink:0}}>
+            <button onClick={()=>setEditing(!editing)} style={{padding:"5px 10px",borderRadius:C.r.full,border:`1px solid ${C.line}`,background:editing?C.ink:"transparent",color:editing?"#fff":C.ink2,cursor:"pointer",fontSize:C.f.xs,fontFamily:"inherit",fontWeight:600}}>{editing?"×":"編集"}</button>
+            <button onClick={onClose} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${C.line}`,background:"transparent",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:isMobile?"14px 16px":"16px 20px"}}>
+        {editing?(
+          <>
+            <Fld label="企業名"><SI value={form.company} onChange={e=>setForm(p=>({...p,company:e.target.value}))}/></Fld>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <Fld label="業界"><SS value={form.industry} onChange={e=>setForm(p=>({...p,industry:e.target.value}))}>{INDUSTRIES.map(i=><option key={i}>{i}</option>)}</SS></Fld>
+              <Fld label="種別"><SS value={form.cat} onChange={e=>setForm(p=>({...p,cat:e.target.value}))}>{CATS.filter(c=>c.id!=="all").map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</SS></Fld>
+              <Fld label="ステータス"><SS value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))}>{STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</SS></Fld>
+              <Fld label="ES締切"><SI type="date" value={form.deadline} onChange={e=>setForm(p=>({...p,deadline:e.target.value}))}/></Fld>
+            </div>
+            <Fld label="メモ"><STA value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={3}/></Fld>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:18,fontSize:C.f.base,color:C.ink2}}>
+              <input type="checkbox" checked={form.priority} onChange={e=>setForm(p=>({...p,priority:e.target.checked}))}/>優先企業
+            </label>
+            <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
+              <Btn onClick={onDelete} danger>削除</Btn>
+              <div style={{display:"flex",gap:8}}><Btn onClick={()=>setEditing(false)}>キャンセル</Btn><Btn primary onClick={save}>保存</Btn></div>
+            </div>
+          </>
+        ):(
+          <>
+            {c.events.length>0&&(
+              <div style={{marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:C.f.xs,color:C.ink3,marginBottom:5,fontWeight:600}}>
+                  <span>選考進捗</span><span>{done}/{c.events.length} · {pct}%</span>
+                </div>
+                <div style={{height:5,background:C.bg2,borderRadius:C.r.full,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?C.grn:C.acc,borderRadius:C.r.full,transition:"width 0.4s"}}/></div>
+              </div>
+            )}
+
+            {c.deadline&&<div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12}}>
+              <span style={{fontSize:C.f.xs,color:C.ink2}}>ES締切: {c.deadline}</span>
+              <UrgBadge date={c.deadline} done={false}/>
+            </div>}
+
+            {c.notes&&<div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:C.r.md,padding:"9px 12px",fontSize:C.f.sm,color:"#92400E",lineHeight:1.7,marginBottom:14}}>{c.notes}</div>}
+
+            {/* ステータス変更 */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:C.f.xs,fontWeight:600,color:C.ink3,marginBottom:8}}>ステータスを変更</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                {STATUSES.map(s=><button key={s.id} onClick={()=>onUpdate({status:s.id})} style={{padding:"5px 12px",borderRadius:C.r.full,border:`1.5px solid ${c.status===s.id?s.border:C.line}`,background:c.status===s.id?s.bg:"transparent",color:c.status===s.id?s.color:C.ink3,cursor:"pointer",fontSize:C.f.xs,fontWeight:c.status===s.id?700:400,fontFamily:"inherit",transition:"all 0.12s"}}>{s.label}</button>)}
+              </div>
+            </div>
+
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <span style={{fontSize:C.f.xs,fontWeight:600,color:C.ink3}}>選考フロー</span>
+              <button onClick={()=>setShowAdd(a=>!a)} style={{fontSize:C.f.xs,color:C.acc,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>＋ 追加</button>
+            </div>
+
+            {showAdd&&(
+              <div style={{background:C.bg2,border:`1px solid ${C.line}`,borderRadius:C.r.md,padding:"12px",marginBottom:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                  <Fld label="種類"><SS value={ef.type} onChange={e=>setEf(p=>({...p,type:e.target.value}))} style={{fontSize:C.f.xs}}>{EVT_TYPES.map(et=><option key={et.id} value={et.id}>{et.icon}{et.label}</option>)}</SS></Fld>
+                  <Fld label="日付"><SI type="date" value={ef.date} onChange={e=>setEf(p=>({...p,date:e.target.value}))} style={{fontSize:C.f.xs}}/></Fld>
+                  <Fld label="形式"><SS value={ef.mode} onChange={e=>setEf(p=>({...p,mode:e.target.value}))} style={{fontSize:C.f.xs}}><option value="online">オンライン</option><option value="offline">対面</option></SS></Fld>
+                  <Fld label="メモ"><SI value={ef.notes} onChange={e=>setEf(p=>({...p,notes:e.target.value}))} placeholder="URLなど" style={{fontSize:C.f.xs}}/></Fld>
+                </div>
+                <div style={{display:"flex",gap:6,justifyContent:"flex-end"}}>
+                  <Btn onClick={()=>setShowAdd(false)}>キャンセル</Btn>
+                  <Btn primary onClick={addEvt} disabled={!ef.date}>追加</Btn>
+                </div>
+              </div>
+            )}
+
+            {sorted.length===0?<div style={{padding:"20px 0",textAlign:"center",color:C.ink3,fontSize:C.f.sm}}>イベントなし</div>
+            :sorted.map((e,i)=>{
+              const et=evtOf(e.type);const u=!e.done?urgLevel(e.date):0;
+              return(
+                <div key={e.id} style={{display:"flex",alignItems:"flex-start",gap:9,marginBottom:8}}>
+                  <Check done={e.done} onChange={()=>onToggleEvent(e.id)} size={22}/>
+                  <div style={{flex:1,background:u>0?urgBg(u):C.bg2,border:`1px solid ${u>0?urgColor(u)+"30":C.line}`,borderRadius:C.r.sm,padding:"9px 11px",opacity:e.done?0.5:1}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:4}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{fontSize:13}}>{et.icon}</span>
+                        <span style={{fontSize:C.f.base,fontWeight:700,color:C.ink,textDecoration:e.done?"line-through":"none"}}>{e.label||et.label}</span>
+                      </div>
+                      <button onClick={()=>onDeleteEvent(e.id)} style={{border:"none",background:"none",cursor:"pointer",color:C.ink3,fontSize:12}}>✕</button>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                      <span style={{fontSize:C.f.xs,fontWeight:u>0?700:400,color:u>0?urgColor(u):C.ink2}}>{fmtM(e.date)}</span>
+                      <span style={{fontSize:9,color:e.mode==="online"?"#4338CA":"#C2410C",fontWeight:500,background:e.mode==="online"?"#EEF2FF":"#FFF7ED",padding:"1px 6px",borderRadius:C.r.full}}>{e.mode==="online"?"オンライン":"対面"}</span>
+                      <UrgBadge date={e.date} done={e.done}/>
+                      {!e.done&&<GcalLink title={`${c.company} ${e.label||et.label}`} date={e.date} notes={e.notes||""}/>}
+                    </div>
+                    {e.notes&&<div style={{marginTop:5,fontSize:C.f.xs,color:C.ink2}}>{e.notes.startsWith("http")?<a href={e.notes} target="_blank" rel="noopener noreferrer" style={{color:C.blu,textDecoration:"none"}}>🔗 {e.notes}</a>:e.notes}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ─── 説明会・イベントビュー ────────────────────────────────
+function EventsView({events,onToggle,onDelete,onAdd,isMobile}){
+  const[filter,setFilter]=useState("all");
+  const filtered=filter==="all"?events:events.filter(e=>e.kind===filter);
+  const upcoming=filtered.filter(e=>!e.done&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
+  const past=filtered.filter(e=>e.done||e.date<today).sort((a,b)=>b.date.localeCompare(a.date));
+  return(
+    <div style={{padding:isMobile?"10px 14px 90px":0}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div><div style={{fontSize:C.f.lg,fontWeight:800,marginBottom:2}}>説明会・就活イベント</div><div style={{fontSize:C.f.xs,color:C.ink3}}>選考とは別の説明会・合同説明会・OB訪問を管理</div></div>
+        <Btn primary onClick={onAdd} style={{padding:"7px 14px",fontSize:C.f.sm}}>＋ 追加</Btn>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:2}}>
+        {[{id:"all",label:"すべて",color:C.ink},...STANDALONE_KINDS].map(k=>(
+          <button key={k.id} onClick={()=>setFilter(k.id)}
+            style={{padding:"5px 13px",borderRadius:C.r.full,border:`1.5px solid ${filter===k.id?k.color:C.line}`,background:filter===k.id?k.color+"15":"transparent",color:filter===k.id?k.color:C.ink3,cursor:"pointer",fontSize:C.f.xs,fontWeight:filter===k.id?700:400,fontFamily:"inherit",whiteSpace:"nowrap",flexShrink:0,transition:"all 0.12s"}}>
+            {k.label}
+          </button>
+        ))}
+      </div>
+      {upcoming.length===0&&past.length===0&&(
+        <div style={{textAlign:"center",padding:"48px 16px"}}>
+          <div style={{fontSize:40,marginBottom:14}}>📅</div>
+          <div style={{fontSize:C.f.md,fontWeight:700,marginBottom:6}}>イベントがありません</div>
+          <div style={{fontSize:C.f.sm,color:C.ink2,marginBottom:20}}>説明会・合同説明会・OB訪問などを登録できます</div>
+          <Btn primary onClick={onAdd}>＋ 最初のイベントを追加</Btn>
+        </div>
+      )}
+      {upcoming.length>0&&(
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:C.f.xs,fontWeight:700,color:C.ink3,textTransform:"uppercase",letterSpacing:0.8,marginBottom:10}}>今後のイベント（{upcoming.length}件）</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {upcoming.map(e=><EvtCard key={e.id} event={e} onToggle={onToggle} onDelete={onDelete}/>)}
+          </div>
+        </div>
+      )}
+      {past.length>0&&(
+        <div style={{opacity:0.6}}>
+          <div style={{fontSize:C.f.xs,fontWeight:700,color:C.ink3,textTransform:"uppercase",letterSpacing:0.8,marginBottom:10}}>過去のイベント</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {past.map(e=><EvtCard key={e.id} event={e} onToggle={onToggle} onDelete={onDelete} muted/>)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EvtCard({event:e,onToggle,onDelete,muted}){
+  const k=kindOf(e.kind);const u=!e.done?urgLevel(e.date):0;
+  return(
+    <div style={{background:C.bg1,border:`1.5px solid ${u>1?urgColor(u)+"40":C.line}`,borderLeft:`3px solid ${e.done?"#E5E7EB":k.color}`,borderRadius:C.r.md,padding:"12px 14px",display:"flex",alignItems:"flex-start",gap:12,transition:"box-shadow 0.15s"}}
+      onMouseEnter={ev=>ev.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.07)"}
+      onMouseLeave={ev=>ev.currentTarget.style.boxShadow=""}>
+      <div style={{width:36,height:36,borderRadius:C.r.sm,background:e.done?"#F3F4F6":k.color+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{k.icon}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+          <span style={{fontSize:9,fontWeight:700,color:e.done?"#9CA3AF":k.color,background:e.done?"#F3F4F6":k.color+"15",padding:"1px 7px",borderRadius:C.r.full}}>{k.label}</span>
+          {u>0&&<UrgBadge date={e.date} done={false}/>}
+        </div>
+        <div style={{fontSize:C.f.base,fontWeight:700,color:e.done?"#9CA3AF":C.ink,textDecoration:e.done?"line-through":"none",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name}</div>
+        {e.organizer&&<div style={{fontSize:C.f.xs,color:C.ink2,marginBottom:5}}>{e.organizer}</div>}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          <span style={{fontSize:C.f.xs,fontWeight:u>0&&!e.done?700:400,color:u>0&&!e.done?urgColor(u):C.ink2}}>{fmtM(e.date)}</span>
+          <span style={{fontSize:9,color:e.mode==="online"?"#4338CA":"#C2410C",background:e.mode==="online"?"#EEF2FF":"#FFF7ED",padding:"1px 6px",borderRadius:C.r.full,fontWeight:500}}>{e.mode==="online"?"オンライン":"対面"}</span>
+          {e.mode==="offline"&&e.location&&<span style={{fontSize:C.f.xs,color:C.ink3}}>📍{e.location}</span>}
+          {e.mode==="online"&&e.url&&<a href={e.url} target="_blank" rel="noopener noreferrer" onClick={ev=>ev.stopPropagation()} style={{fontSize:C.f.xs,color:C.blu,textDecoration:"none"}}>🔗リンク</a>}
+          <GcalLink title={e.name} date={e.date} notes={[e.organizer,e.location||e.url,e.notes].filter(Boolean).join(" ")}/>
+        </div>
+        {e.notes&&<div style={{marginTop:6,fontSize:C.f.xs,color:C.ink2,background:C.bg2,borderRadius:C.r.xs,padding:"4px 8px",lineHeight:1.5}}>{e.notes}</div>}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center",flexShrink:0}}>
+        <Check done={e.done} onChange={()=>onToggle(e.id)} size={22}/>
+        <button onClick={()=>onDelete(e.id)} style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:C.ink3,opacity:0.5}}
+          onMouseEnter={ev=>ev.currentTarget.style.opacity="1"} onMouseLeave={ev=>ev.currentTarget.style.opacity="0.5"}>🗑</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── イベント追加モーダル ──────────────────────────────────
+function AddEventModal({onClose,onSave,isMobile}){
+  const[f,setF]=useState({kind:"setsumeikai",name:"",organizer:"",date:"",mode:"online",location:"",url:"",notes:""});
+  const k=kindOf(f.kind);
+  return(
+    <Modal onClose={onClose} isMobile={isMobile}>
+      <ModalHeader title="イベントを追加" sub="説明会・就活イベントを登録します" onClose={onClose}/>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>
+        {STANDALONE_KINDS.map(k2=>(
+          <button key={k2.id} onClick={()=>setF(p=>({...p,kind:k2.id}))}
+            style={{padding:"6px 14px",borderRadius:C.r.full,border:`1.5px solid ${f.kind===k2.id?k2.color:C.line}`,background:f.kind===k2.id?k2.color+"15":"transparent",color:f.kind===k2.id?k2.color:C.ink2,cursor:"pointer",fontSize:C.f.xs,fontWeight:f.kind===k2.id?700:400,fontFamily:"inherit",transition:"all 0.12s"}}>
+            {k2.icon} {k2.label}
+          </button>
+        ))}
+      </div>
+      <Fld label="イベント名" hint="必須"><SI value={f.name} onChange={e=>setF(p=>({...p,name:e.target.value}))} placeholder="例：マイナビ就活フェア 2026夏"/></Fld>
+      <Fld label="主催・企業名" hint="任意"><SI value={f.organizer} onChange={e=>setF(p=>({...p,organizer:e.target.value}))} placeholder="例：マイナビ"/></Fld>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Fld label="日付" hint="必須"><SI type="date" value={f.date} onChange={e=>setF(p=>({...p,date:e.target.value}))}/></Fld>
+        <Fld label="形式"><SS value={f.mode} onChange={e=>setF(p=>({...p,mode:e.target.value}))}><option value="online">オンライン</option><option value="offline">対面</option></SS></Fld>
+      </div>
+      {f.mode==="offline"&&<Fld label="会場・場所"><SI value={f.location} onChange={e=>setF(p=>({...p,location:e.target.value}))} placeholder="例：東京ビッグサイト"/></Fld>}
+      {f.mode==="online"&&<Fld label="URL・Zoomリンク"><SI value={f.url} onChange={e=>setF(p=>({...p,url:e.target.value}))} placeholder="https://..."/></Fld>}
+      <Fld label="メモ" hint="任意"><STA value={f.notes} onChange={e=>setF(p=>({...p,notes:e.target.value}))} rows={3} placeholder="持ち物・服装・準備など..."/></Fld>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn onClick={onClose}>キャンセル</Btn>
+        <Btn primary onClick={()=>{if(f.name.trim()&&f.date)onSave(f)}} disabled={!f.name.trim()||!f.date}>登録する</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── メール取込モーダル ────────────────────────────────────
+const PARSE_PROMPT=`就活メールを解析してJSONで返してください。フィールド：company(企業名), industry(IT・Web/コンサル/金融・銀行/メーカー/広告・メディア/商社/インフラ/その他), cat(summer/autumn/winter/spring/honsen), status(planning/applied/ongoing/passed/offer/rejected/withdrawn), deadline(YYYY-MM-DD or null), notes(重要メモ), events([{type(es/test/gr/int1/int2/int3/final/offer/info/other),label,date(YYYY-MM-DD or null),mode(online/offline),notes,zoomUrl}])。今日:${new Date().toISOString().slice(0,10)}。純粋なJSONのみ。`;
+
+async function parseEmail(text){
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:`${PARSE_PROMPT}\n\n---\n${text}`}]})});
+  const data=await res.json();
+  return JSON.parse((data.content?.map(c=>c.text||"").join("")||"").replace(/```json|```/g,"").trim());
+}
+
+function EmailModal({onClose,onImport,isMobile}){
+  const[step,setStep]=useState("paste");
+  const[text,setText]=useState("");
+  const[parsed,setParsed]=useState(null);
+  const[edited,setEdited]=useState(null);
+  const[err,setErr]=useState("");
+
+  const analyze=async()=>{
+    if(!text.trim())return;setStep("loading");setErr("");
+    try{
+      const r=await parseEmail(text);
+      const d={...r,events:(r.events||[]).map((e,i)=>({...e,_id:i}))};
+      setParsed(d);setEdited(d);setStep("preview");
+    }catch{setErr("解析に失敗しました");setStep("paste")}
+  };
+
+  return(
+    <Modal onClose={onClose} isMobile={isMobile} width={520}>
+      <ModalHeader title="メールから取込" sub="企業メールをAIが自動解析します" onClose={onClose}/>
+      <div style={{display:"flex",gap:0,marginBottom:20}}>
+        {[["1","ペースト"],["2","AI解析"],["3","確認・編集"]].map(([n,l],i)=>{
+          const done=i<(step==="paste"?0:step==="loading"?1:2);const cur=i===(step==="paste"?0:step==="loading"?1:2);
+          return(<div key={n} style={{display:"flex",alignItems:"center",flex:i<2?1:"auto"}}>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:done||cur?C.acc:C.bg3,color:done||cur?"#fff":C.ink3,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,flexShrink:0}}>{n}</div>
+              <span style={{fontSize:C.f.xs,color:cur?C.ink:C.ink3,fontWeight:cur?700:400,whiteSpace:"nowrap"}}>{l}</span>
+            </div>
+            {i<2&&<div style={{flex:1,height:1.5,background:(done)?C.acc:C.line,margin:"0 8px"}}/>}
+          </div>);
+        })}
+      </div>
+
+      {step==="paste"&&<>
+        <div style={{position:"relative",marginBottom:12}}>
+          <textarea value={text} onChange={e=>setText(e.target.value)} rows={8} placeholder={"企業からのメール本文をここに貼り付けてください\n\n例）\n■日時：2026年7月1日（水）14:00〜\n■形式：オンライン（Zoom）\n■URL：https://zoom.us/j/xxxxx"} style={{...{width:"100%",padding:"10px 12px",border:`1.5px solid ${C.line}`,borderRadius:C.r.md,fontSize:C.f.sm,outline:"none",background:C.bg1,color:C.ink,boxSizing:"border-box",fontFamily:"inherit"},resize:"vertical",lineHeight:1.7}}/>
+        </div>
+        {err&&<div style={{background:C.redBg,border:"1px solid rgba(239,68,68,0.25)",borderRadius:C.r.md,padding:"8px 12px",fontSize:C.f.xs,color:C.red,marginBottom:12}}>⚠ {err}</div>}
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn onClick={onClose}>キャンセル</Btn>
+          <Btn primary onClick={analyze} disabled={!text.trim()}>AIで解析 →</Btn>
+        </div>
+      </>}
+
+      {step==="loading"&&<div style={{textAlign:"center",padding:"40px 0"}}>
+        <div style={{width:40,height:40,borderRadius:"50%",border:`3px solid ${C.bg3}`,borderTopColor:C.acc,margin:"0 auto 14px",animation:"spin 0.8s linear infinite"}}/>
+        <div style={{fontSize:C.f.md,fontWeight:600,marginBottom:4}}>解析中...</div>
+        <div style={{fontSize:C.f.xs,color:C.ink3}}>企業情報・日程・URLを抽出しています</div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>}
+
+      {step==="preview"&&edited&&<>
+        <div style={{background:C.grnBg,border:"1px solid rgba(34,197,94,0.25)",borderRadius:C.r.md,padding:"8px 12px",marginBottom:14,fontSize:C.f.xs,color:C.grn,fontWeight:600,display:"flex",alignItems:"center",gap:6}}>✅ 解析完了！確認・修正してから取込んでください</div>
+        <div style={{background:C.bg2,border:`1px solid ${C.line}`,borderRadius:C.r.lg,padding:"13px 14px",marginBottom:14}}>
+          <div style={{fontSize:C.f.xs,fontWeight:700,color:C.ink3,marginBottom:10,textTransform:"uppercase",letterSpacing:0.6}}>企業情報</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {[["企業名","company"],["業界","industry"]].map(([l,k])=>(
+              <div key={k}><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>{l}</div>
+              <SI value={edited[k]||""} onChange={e=>setEdited(p=>({...p,[k]:e.target.value}))} style={{fontSize:C.f.xs,padding:"5px 8px"}}/></div>
+            ))}
+            <div><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>種別</div>
+              <SS value={edited.cat||"summer"} onChange={e=>setEdited(p=>({...p,cat:e.target.value}))} style={{fontSize:C.f.xs,padding:"5px 8px"}}>
+                {CATS.filter(c=>c.id!=="all").map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+              </SS></div>
+            <div><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>ステータス</div>
+              <SS value={edited.status||"applied"} onChange={e=>setEdited(p=>({...p,status:e.target.value}))} style={{fontSize:C.f.xs,padding:"5px 8px"}}>
+                {STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+              </SS></div>
+            <div style={{gridColumn:"1/-1"}}><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>ES締切</div>
+              <SI type="date" value={edited.deadline||""} onChange={e=>setEdited(p=>({...p,deadline:e.target.value}))} style={{fontSize:C.f.xs,padding:"5px 8px"}}/></div>
+          </div>
+        </div>
+        {(edited.events||[]).length>0&&<div style={{marginBottom:14}}>
+          <div style={{fontSize:C.f.xs,fontWeight:700,color:C.ink3,marginBottom:10,textTransform:"uppercase",letterSpacing:0.6}}>抽出イベント（{edited.events.length}件）</div>
+          {(edited.events||[]).map((e,i)=>(
+            <div key={e._id} style={{background:C.bg1,border:`1px solid ${C.line}`,borderRadius:C.r.md,padding:"10px 12px",marginBottom:6}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>種類</div>
+                  <SS value={e.type} onChange={ev=>setEdited(p=>({...p,events:p.events.map(x=>x._id===e._id?{...x,type:ev.target.value}:x)}))} style={{fontSize:C.f.xs,padding:"4px 7px"}}>
+                    {EVT_TYPES.map(et=><option key={et.id} value={et.id}>{et.icon}{et.label}</option>)}
+                  </SS></div>
+                <div><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>日付</div>
+                  <SI type="date" value={e.date||""} onChange={ev=>setEdited(p=>({...p,events:p.events.map(x=>x._id===e._id?{...x,date:ev.target.value}:x)}))} style={{fontSize:C.f.xs,padding:"4px 7px"}}/></div>
+                <div><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>形式</div>
+                  <SS value={e.mode||"online"} onChange={ev=>setEdited(p=>({...p,events:p.events.map(x=>x._id===e._id?{...x,mode:ev.target.value}:x)}))} style={{fontSize:C.f.xs,padding:"4px 7px"}}>
+                    <option value="online">オンライン</option><option value="offline">対面</option>
+                  </SS></div>
+                <div><div style={{fontSize:9,color:C.ink3,marginBottom:3,fontWeight:700}}>メモ・URL</div>
+                  <SI value={e.notes||e.zoomUrl||""} onChange={ev=>setEdited(p=>({...p,events:p.events.map(x=>x._id===e._id?{...x,notes:ev.target.value}:x)}))} placeholder="URLなど" style={{fontSize:C.f.xs,padding:"4px 7px"}}/></div>
+              </div>
+            </div>
+          ))}
+        </div>}
+        <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
+          <Btn onClick={()=>setStep("paste")}>← 貼り直す</Btn>
+          <Btn primary onClick={()=>onImport(edited)}>✓ この内容で取込む</Btn>
+        </div>
+      </>}
+    </Modal>
+  );
+}
+
+// ─── 企業追加モーダル ─────────────────────────────────────
+function AddModal({onClose,onSave,isMobile}){
+  const[f,setF]=useState({company:"",industry:"IT・Web",cat:"summer",status:"planning",deadline:"",notes:"",priority:false});
+  return(
+    <Modal onClose={onClose} isMobile={isMobile}>
+      <ModalHeader title="企業を追加" sub="選考中の企業を登録します" onClose={onClose}/>
+      <Fld label="企業名" hint="必須"><SI value={f.company} onChange={e=>setF(p=>({...p,company:e.target.value}))} placeholder="例：サイバーエージェント" autoFocus/></Fld>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Fld label="業界"><SS value={f.industry} onChange={e=>setF(p=>({...p,industry:e.target.value}))}>{INDUSTRIES.map(i=><option key={i}>{i}</option>)}</SS></Fld>
+        <Fld label="種別"><SS value={f.cat} onChange={e=>setF(p=>({...p,cat:e.target.value}))}>{CATS.filter(c=>c.id!=="all").map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</SS></Fld>
+        <Fld label="ステータス"><SS value={f.status} onChange={e=>setF(p=>({...p,status:e.target.value}))}>{STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</SS></Fld>
+        <Fld label="ES締切"><SI type="date" value={f.deadline} onChange={e=>setF(p=>({...p,deadline:e.target.value}))}/></Fld>
+      </div>
+      <Fld label="メモ" hint="任意"><STA value={f.notes} onChange={e=>setF(p=>({...p,notes:e.target.value}))} rows={3} placeholder="OB訪問メモなど..."/></Fld>
+      <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:22,padding:"10px 12px",borderRadius:C.r.md,border:`1px solid ${f.priority?C.ink:C.line}`,background:f.priority?C.bg2:"transparent",transition:"all 0.15s"}}>
+        <div style={{width:16,height:16,borderRadius:3,border:`1.5px solid ${f.priority?C.ink:C.line}`,background:f.priority?C.ink:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {f.priority&&<span style={{color:"#fff",fontSize:10,lineHeight:1}}>✓</span>}
+        </div>
+        <input type="checkbox" checked={f.priority} onChange={e=>setF(p=>({...p,priority:e.target.checked}))} style={{display:"none"}}/>
+        <span style={{fontSize:C.f.base,color:C.ink2}}>優先企業としてマーク</span>
+      </label>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn onClick={onClose}>キャンセル</Btn>
+        <Btn primary onClick={()=>{if(f.company.trim())onSave(f)}} disabled={!f.company.trim()}>登録する</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── アプリ本体 ───────────────────────────────────────────
+export default function App(){
+  const isMobile=useMobile();
+  const[companies,setCompanies]=useState(SAMPLE);
+  const[activeView,setActiveView]=useState("today");
+  const[activeCat,setActiveCat]=useState("all");
+  const[filterInd,setFilterInd]=useState("all");
+  const[selected,setSelected]=useState(null);
+  const[showAdd,setShowAdd]=useState(false);
+  const[nextId,setNextId]=useState(200);
+  const[standaloneEvts,setSE]=useState(SAMPLE_EVENTS);
+  const[showAddEvt,setShowAddEvt]=useState(false);
+  const[showEmail,setShowEmail]=useState(false);
+
+  const filtered=useMemo(()=>companies.filter(c=>{
+    if(activeCat!=="all"&&c.cat!==activeCat)return false;
+    if(filterInd!=="all"&&c.industry!==filterInd)return false;
+    return true;
+  }),[companies,activeCat,filterInd]);
+
+  const allEvents=useMemo(()=>{
+    const ev=[];
+    companies.forEach(c=>c.events.forEach(e=>{if(e.date)ev.push({...e,companyId:c.id,company:c.company,category:c.cat,isCompany:true})}));
+    standaloneEvts.forEach(e=>ev.push({id:`se-${e.id}`,type:e.kind,label:e.name,date:e.date,done:e.done,mode:e.mode,notes:e.notes,company:e.organizer||e.name,category:"event",isStandalone:true,seId:e.id}));
+    return ev.sort((a,b)=>a.date.localeCompare(b.date));
+  },[companies,standaloneEvts]);
+
+  const updC=(id,patch)=>{setCompanies(p=>p.map(c=>c.id===id?{...c,...patch}:c));setSelected(p=>p&&p.id===id?{...p,...patch}:p)};
+  const delC=id=>{setCompanies(p=>p.filter(c=>c.id!==id));setSelected(null)};
+  const togEvt=(cid,eid)=>{setCompanies(p=>p.map(c=>c.id===cid?{...c,events:c.events.map(e=>e.id===eid?{...e,done:!e.done}:e)}:c));setSelected(p=>p&&p.id===cid?{...p,events:p.events.map(e=>e.id===eid?{...e,done:!e.done}:e)}:p)};
+  const delEvt=eid=>{if(!selected)return;const up={...selected,events:selected.events.filter(e=>e.id!==eid)};setCompanies(p=>p.map(c=>c.id===selected.id?up:c));setSelected(up)};
+
+  const VIEWS=[
+    {id:"today",label:"今日",   icon:"🏠"},
+    {id:"board",label:"ボード", icon:"📋"},
+    {id:"cal",  label:"カレンダー",icon:"📅"},
+    {id:"list", label:"一覧",   icon:"≡"},
+    {id:"events",label:"イベント",icon:"🗓"},
+  ];
+
+  const maxW=1280;
+
+  return(
+    <div style={{fontFamily:"-apple-system,'Hiragino Sans','Yu Gothic UI',sans-serif",background:C.bg,minHeight:"100vh",color:C.ink,writingMode:"horizontal-tb",paddingBottom:isMobile?72:0}}>
+      <style>{`*{box-sizing:border-box}input[type=date]::-webkit-calendar-picker-indicator{opacity:0.4}select option{background:#fff;color:#111}::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:${C.line};border-radius:4px}`}</style>
+
+      {/* ── ヘッダー ── */}
+      <header style={{background:C.bg1,borderBottom:`1px solid ${C.line}`,position:"sticky",top:0,zIndex:50,height:isMobile?50:54}}>
+        <div style={{maxWidth:maxW,margin:"0 auto",display:"flex",alignItems:"center",gap:isMobile?8:16,height:"100%",padding:`0 ${isMobile?14:24}px`}}>
+          {/* ロゴ */}
+          <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            <div style={{width:26,height:26,borderRadius:C.r.sm,background:`linear-gradient(135deg,${C.acc},${C.pur})`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{fontSize:13}}>📋</span>
+            </div>
+            {!isMobile&&<span style={{fontSize:14,fontWeight:700,letterSpacing:-0.4}}>就活トラッカー</span>}
+          </div>
+
+          {/* PCカテゴリタブ */}
+          {!isMobile&&(
+            <div style={{display:"flex",gap:2,flex:1}}>
+              {CATS.map(cat=>{
+                const active=activeCat===cat.id;
+                const cnt=cat.id==="all"?companies.length:companies.filter(c=>c.cat===cat.id).length;
+                return(
+                  <button key={cat.id} onClick={()=>setActiveCat(cat.id)}
+                    style={{padding:"5px 12px",borderRadius:C.r.full,border:`1.5px solid ${active?(cat.border||C.lineM||C.ink):"transparent"}`,background:active?(cat.bg||C.bg2):"transparent",cursor:"pointer",fontFamily:"inherit",fontSize:C.f.sm,fontWeight:active?700:400,color:active?(cat.color||C.ink):C.ink3,display:"inline-flex",alignItems:"center",gap:5,whiteSpace:"nowrap",transition:"all 0.12s"}}>
+                    {cat.id!=="all"&&cat.color&&<span style={{width:5,height:5,borderRadius:"50%",background:cat.color,display:"inline-block"}}/>}
+                    {cat.label}
+                    <span style={{fontSize:9,fontWeight:600,opacity:0.7,background:"rgba(0,0,0,0.06)",padding:"0 5px",borderRadius:C.r.full}}>{cnt}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {!isMobile&&<div style={{flex:1}}/>}
+          {isMobile&&<div style={{flex:1}}/>}
+
+          {/* 業界フィルター（PC） */}
+          {!isMobile&&(
+            <select value={filterInd} onChange={e=>setFilterInd(e.target.value)} style={{...iSt,width:"auto",borderRadius:C.r.full,fontSize:C.f.xs,padding:"5px 12px",height:"auto"}}>
+              <option value="all">全業界</option>
+              {INDUSTRIES.map(i=><option key={i}>{i}</option>)}
+            </select>
+          )}
+
+          <button onClick={()=>setShowEmail(true)} style={{width:34,height:34,borderRadius:"50%",border:`1px solid ${C.line}`,background:C.bg1,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",title:"メール取込"}} title="メールから取込">📨</button>
+          <Bell companies={companies}/>
+
+          <Btn primary onClick={()=>setShowAdd(true)} style={{padding:isMobile?"6px 10px":"7px 16px",fontSize:C.f.sm}}>
+            {isMobile?"＋":"＋ 企業を追加"}
+          </Btn>
+        </div>
+      </header>
+
+      {/* スマホカテゴリタブ */}
+      {isMobile&&(
+        <div style={{background:C.bg1,borderBottom:`1px solid ${C.line}`,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+          <div style={{display:"flex",padding:"0 14px",minWidth:"max-content"}}>
+            {CATS.map(cat=>{
+              const active=activeCat===cat.id;
+              const cnt=cat.id==="all"?companies.length:companies.filter(c=>c.cat===cat.id).length;
+              return(
+                <button key={cat.id} onClick={()=>setActiveCat(cat.id)}
+                  style={{padding:"9px 12px",border:"none",borderBottom:`2px solid ${active?(cat.color||C.ink):"transparent"}`,background:"transparent",cursor:"pointer",fontFamily:"inherit",fontSize:C.f.sm,fontWeight:active?700:400,color:active?(cat.color||C.ink):C.ink3,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5,transition:"all 0.12s"}}>
+                  {cat.id!=="all"&&cat.color&&active&&<span style={{width:5,height:5,borderRadius:"50%",background:cat.color}}/>}
+                  {cat.label}
+                  <span style={{fontSize:9,opacity:0.7,background:"rgba(0,0,0,0.05)",padding:"0 4px",borderRadius:C.r.full}}>{cnt}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* メインコンテンツ */}
+      <div style={{maxWidth:maxW,margin:"0 auto",padding:isMobile?"0":"16px 24px"}}>
+        {activeView==="today"&&<TodayView companies={companies} allEvents={allEvents} onSelect={id=>{const c=companies.find(c=>c.id===id);if(c)setSelected(c)}} onToggle={togEvt} onShowAdd={()=>setShowAdd(true)} isMobile={isMobile}/>}
+        {activeView==="board"&&<BoardView companies={filtered} onSelect={setSelected} isMobile={isMobile}/>}
+        {activeView==="cal"  &&<CalView   allEvents={allEvents} onSelect={id=>{const c=companies.find(c=>c.id===id);if(c)setSelected(c)}} isMobile={isMobile}/>}
+        {activeView==="list"   &&<ListView  companies={filtered}  onSelect={setSelected} onDelete={delC} isMobile={isMobile}/>}
+        {activeView==="events" &&<EventsView events={standaloneEvts} onToggle={id=>setSE(p=>p.map(e=>e.id===id?{...e,done:!e.done}:e))} onDelete={id=>setSE(p=>p.filter(e=>e.id!==id))} onAdd={()=>setShowAddEvt(true)} isMobile={isMobile}/>}
+      </div>
+
+      {/* ボトムナビ（スマホ） */}
+      {isMobile&&(
+        <nav style={{position:"fixed",bottom:0,left:0,right:0,background:C.bg1,borderTop:`1px solid ${C.line}`,display:"flex",zIndex:60,paddingBottom:"env(safe-area-inset-bottom,0px)",boxShadow:"0 -4px 20px rgba(0,0,0,0.06)"}}>
+          {VIEWS.map(v=>(
+            <button key={v.id} onClick={()=>setActiveView(v.id)}
+              style={{flex:1,padding:"9px 0 7px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,fontFamily:"inherit",WebkitTapHighlightColor:"transparent",transition:"color 0.15s"}}>
+              <span style={{fontSize:18,lineHeight:1}}>{v.icon}</span>
+              <span style={{fontSize:9,fontWeight:activeView===v.id?700:500,color:activeView===v.id?C.acc:C.ink3}}>{v.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {/* PCサイドナビ（詳細パネルが開いていない時） */}
+      {!isMobile&&!selected&&(
+        <div style={{position:"fixed",left:0,top:"50%",transform:"translateY(-50%)",display:"flex",flexDirection:"column",gap:2,padding:"8px 6px",background:C.bg1,border:`1px solid ${C.line}`,borderRadius:`0 ${C.r.lg}px ${C.r.lg}px 0`,zIndex:30,boxShadow:"2px 0 12px rgba(0,0,0,0.06)"}}>
+          {VIEWS.map(v=>(
+            <button key={v.id} onClick={()=>setActiveView(v.id)}
+              style={{width:40,height:40,borderRadius:C.r.md,border:"none",background:activeView===v.id?C.accBg:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,fontFamily:"inherit",transition:"background 0.15s"}}
+              title={v.label}>
+              <span style={{fontSize:16}}>{v.icon}</span>
+              <span style={{fontSize:8,color:activeView===v.id?C.acc:C.ink3,fontWeight:activeView===v.id?700:400}}>{v.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 詳細パネル */}
+      {selected&&(
+        <DetailPanel company={selected} onClose={()=>setSelected(null)}
+          onUpdate={patch=>updC(selected.id,patch)}
+          onDelete={()=>delC(selected.id)}
+          onToggleEvent={eid=>togEvt(selected.id,eid)}
+          onDeleteEvent={delEvt}
+          isMobile={isMobile}/>
+      )}
+
+      {/* イベント追加 */}
+      {showAddEvt&&<AddEventModal onClose={()=>setShowAddEvt(false)} isMobile={isMobile} onSave={f=>{setSE(p=>[...p,{id:nextId,...f,done:false}]);setNextId(n=>n+1);setShowAddEvt(false)}}/> }
+
+      {/* メール取込 */}
+      {showEmail&&<EmailModal onClose={()=>setShowEmail(false)} isMobile={isMobile} onImport={d=>{setCompanies(p=>[...p,{id:nextId,company:d.company||"（未取得）",industry:d.industry||"その他",cat:d.cat||"other",status:d.status||"applied",priority:false,deadline:d.deadline||""  ,notes:d.notes||""  ,events:(d.events||[]).map((e,i)=>({id:nextId+i+1,type:e.type||"other",label:e.label||"イベント",date:e.date||""  ,done:false,mode:e.mode||"online"  ,notes:e.notes||""  }))}]);setNextId(n=>n+100);setShowEmail(false)}}/>}
+
+      {/* 企業追加 */}
+      {showAdd&&<AddModal onClose={()=>setShowAdd(false)} isMobile={isMobile}
+        onSave={f=>{setCompanies(p=>[...p,{id:nextId,...f,events:[]}]);setNextId(n=>n+1);setShowAdd(false)}}/>}
+    </div>
+  );
+}
+
+
