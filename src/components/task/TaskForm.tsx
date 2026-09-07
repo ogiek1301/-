@@ -5,7 +5,9 @@ import type { NewTaskInput, Priority } from "@/types/task";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { CategoryInput } from "@/components/task/CategoryInput";
+import { VoiceInputButton } from "@/components/voice/VoiceInputButton";
 import { validateTaskForm } from "@/lib/validation";
+import { inferDueDateFromTitle } from "@/lib/dateKeywords";
 
 interface TaskFormProps {
   initialValues?: NewTaskInput;
@@ -46,6 +48,26 @@ export function TaskForm({ initialValues, categorySuggestions, onSubmit, submitL
   const [category, setCategory] = useState(base.category ?? "");
   const [errors, setErrors] = useState<ReturnType<typeof validateTaskForm>["errors"]>({});
 
+  /**
+   * F-10 ルールベースの日付推測。期日欄に手動入力済みの値がある場合は上書きしない。
+   * 音声認識の結果もキーボード入力も、この関数を通すことで挙動を統一する（design.md 3.3節）。
+   */
+  const applyDateInference = (nextTitle: string) => {
+    if (dueDate) return;
+    const inferred = inferDueDateFromTitle(nextTitle);
+    if (inferred) setDueDate(inferred);
+  };
+
+  const handleTitleBlur = () => {
+    applyDateInference(title);
+  };
+
+  const handleVoiceResult = (transcript: string) => {
+    const nextTitle = title.trim() ? `${title}${transcript}` : transcript;
+    setTitle(nextTitle);
+    applyDateInference(nextTitle);
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
@@ -71,7 +93,18 @@ export function TaskForm({ initialValues, categorySuggestions, onSubmit, submitL
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <TextField label="タイトル" value={title} onChange={setTitle} error={errors.title} />
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <TextField
+            label="タイトル"
+            value={title}
+            onChange={setTitle}
+            onBlur={handleTitleBlur}
+            error={errors.title}
+          />
+        </div>
+        <VoiceInputButton onResult={handleVoiceResult} />
+      </div>
       <TextField label="メモ" value={memo} onChange={setMemo} multiline error={errors.memo} />
       <TextField label="期日" type="date" value={dueDate} onChange={setDueDate} />
       <div className="grid grid-cols-2 gap-3">
