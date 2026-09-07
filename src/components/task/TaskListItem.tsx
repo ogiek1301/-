@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Task } from "@/types/task";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { todayJst } from "@/lib/dates";
 
 export type TaskListItemVariant = "active" | "archived" | "trashed" | "readonly";
 
@@ -41,6 +42,9 @@ export function TaskListItem({
 }: TaskListItemProps) {
   const isCompleted = task.status === "active" && task.completedAt !== null;
   const time = formatTime(task);
+  // O-08: 期日が過去の未完了タスクは、期日の文字色で視覚的に区別する。
+  const isOverdue =
+    task.status === "active" && task.completedAt === null && task.dueDate !== null && task.dueDate < todayJst();
 
   const body = (
     <div className="min-w-0 flex-1">
@@ -48,7 +52,9 @@ export function TaskListItem({
         {task.title}
       </p>
       <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-gray-500">
-        {task.dueDate && <span>{task.dueDate}</span>}
+        {task.dueDate && (
+          <span className={isOverdue ? "font-medium text-red-600" : undefined}>{task.dueDate}</span>
+        )}
         {time && <span>{time}</span>}
         <span className={PRIORITY_COLOR[task.priority]}>優先度: {PRIORITY_LABEL[task.priority]}</span>
         {task.category && <span>#{task.category}</span>}
